@@ -115,3 +115,29 @@ export interface UserAttribute {
   key: string;
   value: string | null;
 }
+
+export interface AiChatLog {
+  id: string;
+  user_id: string;
+  message_id: string | null;
+  user_message: string;
+  ai_reply: string;
+  confidence: number;
+  should_escalate: number;
+  knowledge_ids: string | null;
+  model: string;
+  response_time_ms: number | null;
+  created_at: string;
+}
+
+export interface Escalation {
+  id: string;
+  user_id: string;
+  ai_chat_log_id: string | null;
+  status: 'open' | 'assigned' | 'resolved' | 'closed';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  note: string | null;
+  assigned_to: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}

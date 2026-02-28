@@ -1,3 +1,37 @@
+## 🤖 マルチエージェント【確定版・動作確認済み 2026-02-28】
+
+**kin で3エージェント並列実行を確認済み。必ずこのパターンを使うこと。**
+
+CLAUDE_BIN=/home/gureocbot/.npm-global/bin/claude
+
+並列起動パターン（env -u CLAUDECODE が必須）:
+  env -u CLAUDECODE $CLAUDE_BIN --dangerously-skip-permissions -p 'タスク1' > /tmp/agent1.log 2>&1 &
+  PID1=$!
+  env -u CLAUDECODE $CLAUDE_BIN --dangerously-skip-permissions -p 'タスク2' > /tmp/agent2.log 2>&1 &
+  PID2=$!
+  env -u CLAUDECODE $CLAUDE_BIN --dangerously-skip-permissions -p 'タスク3' > /tmp/agent3.log 2>&1 &
+  PID3=$!
+  wait $PID1 $PID2 $PID3
+  cat /tmp/agent1.log /tmp/agent2.log /tmp/agent3.log
+
+なぜenv -u CLAUDECODEが必要か:
+Claude CodeはCLAUDECODE環境変数をセットする。子プロセスに残るとネスト起動が拒否される。
+env -u CLAUDECODEでその変数を除去してから起動することで解決。
+
+タスク分解パターン:
+- agent1: フロントエンド（UIコンポーネント・ページ）
+- agent2: バックエンド（API・DB・ビジネスロジック）
+- agent3: テスト（ユニット・E2E）
+→ wait → 統合 → commit
+
+ルール:
+1. 複数ファイルにまたがる実装は必ず並列起動
+2. 単独実行は1ファイル以内の小修正のみ
+3. プロンプトは具体的に（ファイルパス・実装内容・コードスタイルを含める）
+4. 完了報告に「何エージェントで並列実行したか」を明記
+
+---
+
 # CLAUDE.md — line-ai-marketing
 
 ## プロジェクト概要
@@ -47,26 +81,29 @@ LSTEP（LINE公式アカウントMAツール）の全機能を実装し、そこ
 - Flex Messageデザイン自動生成
 - A/Bテスト用バリエーション生成
 
-## 🤖 マルチエージェント必須ルール
 
-CLAUDE_BIN=/home/gureocbot/.npm-global/bin/claude
+---
 
-並列実行例:
-  $CLAUDE_BIN --dangerously-skip-permissions -p 'フロントエンド実装' > /tmp/a1.log 2>&1 &
-  $CLAUDE_BIN --dangerously-skip-permissions -p 'バックエンドAPI実装' > /tmp/a2.log 2>&1 &
-  wait && cat /tmp/a1.log /tmp/a2.log
+## タスク完了後のプロトコル（必須・毎回実行）
 
-ルール:
-1. タスク受け取り → 並列化可能な単位に分解
-2. 依存関係のないタスクは必ず並列実行
-3. 全完了後に統合・commit・deploy
-4. 完了報告に「何エージェントで並列実行したか」を明記
+タスクが完了したら、次の指示を待つ前に**必ず以下を自分で実行**すること。
 
-## Telegram報告コマンド
-curl -s -X POST "https://api.telegram.org/bot8247958281:AAEeItTIVYFUklGEa4UxA7-SEJ5g1yfFAHU/sendMessage" \
-  -d "chat_id=-1003340768179" \
-  -d "message_thread_id=19" \
-  --data-urlencode "text=✅ [完了内容]\n👉 URL\n次: [次タスク]"
+### STEP 1: 自己評価
+コードベース・git log・テスト結果を自分で確認し、プロジェクトのゴールに対して「完成している機能」と「まだ足りないもの・改善すべきもの」を洗い出す。アオやRyoの指示を待たない。自分で考える。
 
-## デプロイ
-CLOUDFLARE_API_TOKEN=wPYPF6_-IbPFe-tiofdjGJFLKLS2eGGhgDv-kKsT npx wrangler deploy
+### STEP 2: status-report.md を更新
+~/status-report.md を最新状態に書き直す。完成済みはチェック、未実装・改善必要はHIGH/MEDIUM/LOW優先度付きで記載。
+
+### STEP 3: Telegramで次タスクを提案
+担当トピックに送信する形式:
+【[プロジェクト名] 完了 + 次タスク提案】
+✅ 今回完了: [やったこと]
+💡 次の提案:
+🔴 HIGH: [最重要タスク・理由]
+🟡 MEDIUM: [中優先・理由]
+🟢 LOW: [低優先・理由]
+⚠️ ブロッカー: [外部対応必要なもの]
+→ アオ確認後に実装開始します
+
+### STEP 4: 待機とフォールバック
+アオからの返信を受け取ってから実装開始。ただし30分以上返信がない場合はHIGHタスクを自律判断で開始してよい。

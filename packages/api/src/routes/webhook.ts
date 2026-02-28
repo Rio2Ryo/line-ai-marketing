@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Env } from "../types";
 import { verifySignature, sendReplyMessage, getProfile, getUserProfile } from "../lib/line";
 import { evaluateTriggers, executeScenario } from "../lib/scenario-engine";
+import { generateAiReply } from "../lib/ai-chat";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -86,14 +87,21 @@ async function handleMessageEvent(env: Env, event: any): Promise<void> {
     "INSERT INTO messages (id, user_id, direction, message_type, content, raw_json) VALUES (?, ?, ?, ?, ?, ?)"
   ).bind(generateId(), userId, "inbound", msgType, textContent, JSON.stringify(event)).run();
 
-  // Echo reply for text messages only (Phase 3: AI reply)
+  // AI応答（Phase 3: RAGチャットボット）
   if (msgType === "text") {
-    const replyText = `受信: ${event.message.text}`;
-    await sendReplyMessage(event.replyToken, [{ type: "text", text: replyText }], env.LINE_CHANNEL_ACCESS_TOKEN);
+    // AI応答生成（RAG）
+    const aiResult = await generateAiReply(env, userId, textContent);
+    await sendReplyMessage(event.replyToken, [{ type: "text", text: aiResult.reply }], env.LINE_CHANNEL_ACCESS_TOKEN);
 
+    // AI応答をDB保存
     await env.DB.prepare(
       "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)"
-    ).bind(generateId(), userId, "outbound", "text", replyText).run();
+    ).bind(generateId(), userId, "outbound", "text", aiResult.reply).run();
+
+    // エスカレーション判定時はログ出力
+    if (aiResult.shouldEscalate) {
+      console.log("Escalation suggested for user:", userId, "confidence:", aiResult.confidence);
+    }
 
     // Keyword-based scenario triggers
     const kwSids = await evaluateTriggers(env, "message_keyword", { text: textContent });
