@@ -97,3 +97,21 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+export interface DeliveryLog {
+  id: string;
+  scenario_id: string | null;
+  scenario_step_id: string | null;
+  user_id: string;
+  status: 'pending' | 'sent' | 'failed';
+  scheduled_at: string | null;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface UserAttribute {
+  user_id: string;
+  key: string;
+  value: string | null;
+}

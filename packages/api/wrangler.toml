@@ -11,3 +11,6 @@ database_id = "placeholder"
 [vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://line-ai-marketing.pages.dev"
+
+[triggers]
+crons = ["*/5 * * * *"]

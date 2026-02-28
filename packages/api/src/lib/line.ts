@@ -73,3 +73,26 @@ export async function getProfile(accessToken: string): Promise<LineProfile> {
 
   return response.json() as Promise<LineProfile>;
 }
+
+export async function sendPushMessage(to: string, messages: unknown[], accessToken: string): Promise<void> {
+  const res = await fetch('https://api.line.me/v2/bot/message/push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
+    body: JSON.stringify({ to, messages }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Push failed: ' + res.status + ' ' + err);
+  }
+}
+
+export async function getUserProfile(userId: string, accessToken: string): Promise<LineProfile> {
+  const res = await fetch('https://api.line.me/v2/bot/profile/' + userId, {
+    headers: { Authorization: 'Bearer ' + accessToken },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Profile fetch failed: ' + res.status + ' ' + err);
+  }
+  return res.json() as Promise<LineProfile>;
+}
