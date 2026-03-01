@@ -14,6 +14,9 @@ import { richmenuRoutes } from "./routes/richmenu";
 import { surveyRoutes } from "./routes/surveys";
 import { segmentRoutes } from "./routes/segments";
 import { aiGenerateRoutes } from "./routes/ai-generate";
+import { analyticsRoutes } from "./routes/analytics";
+import { scheduledDeliveryRoutes } from "./routes/scheduled";
+import { autoResponseRoutes } from "./routes/auto-response";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -32,7 +35,7 @@ app.use("*", cors({
 app.get("/", (c) => c.json({
   status: "ok",
   service: "LINE AI Marketing API",
-  version: "0.4.0",
+  version: "0.5.0",
   timestamp: new Date().toISOString(),
 }));
 
@@ -50,6 +53,9 @@ app.route("/api/richmenu", richmenuRoutes);
 app.route("/api/surveys", surveyRoutes);
 app.route("/api/segments", segmentRoutes);
 app.route("/api/ai/generate", aiGenerateRoutes);
+app.route("/api/analytics", analyticsRoutes);
+app.route("/api/scheduled", scheduledDeliveryRoutes);
+app.route("/api/auto-response", autoResponseRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {
