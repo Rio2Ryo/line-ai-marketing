@@ -10,6 +10,7 @@ import { scenarioRoutes } from "./routes/scenarios";
 import { statsRoutes } from "./routes/stats";
 import { aiLogRoutes } from "./routes/ai-logs";
 import { knowledgeRoutes } from "./routes/knowledge";
+import { richmenuRoutes } from "./routes/richmenu";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -42,6 +43,7 @@ app.route("/api/scenarios", scenarioRoutes);
 app.route("/api/stats", statsRoutes);
 app.route("/api/ai", aiLogRoutes);
 app.route("/api/knowledge", knowledgeRoutes);
+app.route("/api/richmenu", richmenuRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

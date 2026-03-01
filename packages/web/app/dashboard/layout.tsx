@@ -8,6 +8,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'ダッシュボード',
   '/dashboard/customers': '顧客管理',
   '/dashboard/scenarios': 'シナリオ',
+  '/dashboard/richmenu': 'リッチメニュー',
   '/dashboard/messages': 'メッセージ',
   '/dashboard/knowledge': 'ナレッジベース',
   '/dashboard/settings': '設定',

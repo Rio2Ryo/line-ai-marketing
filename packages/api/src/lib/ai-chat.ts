@@ -87,7 +87,7 @@ ${knowledgeContext ? `## ナレッジベース（参考情報）\n${knowledgeCon
     const authHeader = isFoundry
       ? { 'Authorization': `Bearer ${env.ANTHROPIC_API_KEY}` }
       : { 'x-api-key': env.ANTHROPIC_API_KEY };
-    const modelName = isFoundry ? 'claude-opus-4-6' : 'claude-3-5-haiku-20241022';
+    const modelName = isFoundry ? 'claude-opus-4-6' : 'claude-haiku-4-5-20251001';
 
     const response = await fetch(apiUrl, {
       method: 'POST',
