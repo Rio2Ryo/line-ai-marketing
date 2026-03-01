@@ -79,15 +79,25 @@ ${knowledgeContext ? `## ナレッジベース（参考情報）\n${knowledgeCon
   let confidence: number;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Azure AI Foundry endpoint (ANTHROPIC_RESOURCE設定時) or direct Anthropic API
+    const isFoundry = !!env.ANTHROPIC_RESOURCE;
+    const apiUrl = isFoundry
+      ? `https://${env.ANTHROPIC_RESOURCE}.services.ai.azure.com/anthropic/v1/messages`
+      : 'https://api.anthropic.com/v1/messages';
+    const authHeader = isFoundry
+      ? { 'Authorization': `Bearer ${env.ANTHROPIC_API_KEY}` }
+      : { 'x-api-key': env.ANTHROPIC_API_KEY };
+    const modelName = isFoundry ? 'claude-opus-4-6' : 'claude-3-5-haiku-20241022';
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
+        ...authHeader,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: modelName,
         max_tokens: 500,
         system: systemPrompt,
         messages,

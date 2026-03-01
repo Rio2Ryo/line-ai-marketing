@@ -6,6 +6,7 @@ export interface Env {
   LINE_LOGIN_CHANNEL_SECRET: string;
   JWT_SECRET: string;
   ANTHROPIC_API_KEY: string;
+  ANTHROPIC_RESOURCE: string;
   ENVIRONMENT: string;
   FRONTEND_URL: string;
 }
