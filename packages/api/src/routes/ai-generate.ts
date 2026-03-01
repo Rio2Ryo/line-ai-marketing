@@ -123,11 +123,15 @@ aiGenerateRoutes.post('/flex', async (c) => {
 LINE Messaging APIで使える正しいFlex Message JSONを生成してください。
 
 ルール:
-- LINE Flex Message仕様に完全準拠
+- LINE Flex Message仕様に完全準拠したtype:"bubble"のJSONを返す
+- トップレベル構造: { "type": "bubble", "header": {...}, "body": {...}, "footer": {...} }
+- headerにはtitleをtext componentで配置
+- bodyにはdescription/price/detailsをvertical boxで配置
+- footerにはCTAボタン(type:"button", action:{type:"uri"})を配置
 - ${typeLabel[body.content_type] || body.content_type}に適したレイアウト
 - カラーは#06C755（LINEグリーン）を基調に
-- 必ず有効なFlex Message JSONオブジェクトのみを返してください
-- 他のテキストやマークダウンは含めないでください`;
+- text componentのwrap属性はtrue推奨
+- 必ず有効なJSON**のみ**を返してください（説明テキスト不要）`;
 
     const userMessage = `目的: ${body.purpose}\n種類: ${typeLabel[body.content_type]}\n詳細: ${body.details}`;
 
