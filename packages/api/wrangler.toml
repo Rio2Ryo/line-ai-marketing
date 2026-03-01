@@ -6,11 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "line-ai-marketing-db"
-database_id = "placeholder"
+database_id = "ef059a69-1ead-4614-a914-ac13a2e16e57"
 
 [vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://line-ai-marketing.pages.dev"
 
-[triggers]
-crons = ["*/5 * * * *"]
+# [triggers]
+# crons = ["*/5 * * * *"]
+# NOTE: Free plan cron limit reached (5/5). Re-enable when slot available.
