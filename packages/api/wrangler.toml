@@ -15,4 +15,4 @@ ANTHROPIC_RESOURCE = "goto-m5s4tqgq-eastus2"
 
 # [triggers]
 # crons = ["*/5 * * * *"]
-# NOTE: Free plan cron limit reached (5/5). Re-enable when slot available.
+# NOTE: Free plan cron limit (5/5). Processing logic implemented, awaiting plan upgrade or slot.

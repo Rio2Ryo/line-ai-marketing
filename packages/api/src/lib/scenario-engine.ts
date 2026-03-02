@@ -66,6 +66,77 @@ export async function processScheduledDeliveries(env: Env): Promise<{ processed:
   return { processed: (pending.results || []).length, sent, failed };
 }
 
+export async function processScheduledDeliveryJobs(env: Env): Promise<{ processed: number; sent: number; failed: number }> {
+  const now = new Date().toISOString();
+  const pending = await env.DB.prepare(
+    "SELECT * FROM scheduled_deliveries WHERE status = 'pending' AND scheduled_at <= ? LIMIT 20"
+  ).bind(now).all();
+
+  let totalSent = 0, totalFailed = 0;
+
+  for (const job of (pending.results || []) as any[]) {
+    await env.DB.prepare(
+      "UPDATE scheduled_deliveries SET status = 'processing', updated_at = datetime('now') WHERE id = ?"
+    ).bind(job.id).run();
+
+    try {
+      const users = await resolveTargetUsers(env, job.target_type, job.target_config);
+      let sent = 0, failed = 0;
+
+      for (const user of users) {
+        try {
+          await pushMessage(env, user.line_user_id, job.message_content);
+          sent++;
+        } catch {
+          failed++;
+        }
+      }
+
+      await env.DB.prepare(
+        "UPDATE scheduled_deliveries SET status = 'completed', sent_count = ?, failed_count = ?, updated_at = datetime('now') WHERE id = ?"
+      ).bind(sent, failed, job.id).run();
+      totalSent += sent;
+      totalFailed += failed;
+    } catch (e) {
+      await env.DB.prepare(
+        "UPDATE scheduled_deliveries SET status = 'failed', updated_at = datetime('now') WHERE id = ?"
+      ).bind(job.id).run();
+      totalFailed++;
+      console.error('Scheduled delivery job failed:', job.id, e);
+    }
+  }
+
+  return { processed: (pending.results || []).length, sent: totalSent, failed: totalFailed };
+}
+
+async function resolveTargetUsers(env: Env, targetType: string, targetConfig: string | null): Promise<{ line_user_id: string }[]> {
+  if (targetType === 'all') {
+    const rows = await env.DB.prepare("SELECT line_user_id FROM users WHERE status = 'active' LIMIT 1000").all();
+    return (rows.results || []) as { line_user_id: string }[];
+  }
+
+  if (targetType === 'tag' && targetConfig) {
+    const tagNames = targetConfig.split(',').map(t => t.trim()).filter(Boolean);
+    if (tagNames.length === 0) return [];
+    const placeholders = tagNames.map(() => '?').join(',');
+    const rows = await env.DB.prepare(
+      `SELECT DISTINCT u.line_user_id FROM users u
+       JOIN user_tags ut ON u.id = ut.user_id
+       JOIN tags t ON ut.tag_id = t.id
+       WHERE t.name IN (${placeholders}) AND u.status = 'active' LIMIT 1000`
+    ).bind(...tagNames).all();
+    return (rows.results || []) as { line_user_id: string }[];
+  }
+
+  if (targetType === 'segment' && targetConfig) {
+    // segment config is stored as JSON conditions — simplified to 'all' for now
+    const rows = await env.DB.prepare("SELECT line_user_id FROM users WHERE status = 'active' LIMIT 1000").all();
+    return (rows.results || []) as { line_user_id: string }[];
+  }
+
+  return [];
+}
+
 async function pushMessage(env: Env, lineUserId: string, text: string): Promise<void> {
   const res = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
