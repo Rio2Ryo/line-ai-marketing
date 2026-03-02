@@ -87,23 +87,34 @@ async function handleMessageEvent(env: Env, event: any): Promise<void> {
     "INSERT INTO messages (id, user_id, direction, message_type, content, raw_json) VALUES (?, ?, ?, ?, ?, ?)"
   ).bind(generateId(), userId, "inbound", msgType, textContent, JSON.stringify(event)).run();
 
-  // AI応答（Phase 3: RAGチャットボット）
+  // テキストメッセージ処理
   if (msgType === "text") {
-    // AI応答生成（RAG）
-    const aiResult = await generateAiReply(env, userId, textContent);
-    await sendReplyMessage(event.replyToken, [{ type: "text", text: aiResult.reply }], env.LINE_CHANNEL_ACCESS_TOKEN);
+    // 1. 自動応答ルールマッチング（auto_response_rules）
+    const ruleMatch = await matchAutoResponseRule(env, textContent);
 
-    // AI応答をDB保存
-    await env.DB.prepare(
-      "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)"
-    ).bind(generateId(), userId, "outbound", "text", aiResult.reply).run();
+    if (ruleMatch) {
+      // ルールマッチ: ルール応答を優先
+      const replyMessages = buildRuleReplyMessages(ruleMatch);
+      await sendReplyMessage(event.replyToken, replyMessages, env.LINE_CHANNEL_ACCESS_TOKEN);
 
-    // エスカレーション判定時はログ出力
-    if (aiResult.shouldEscalate) {
-      console.log("Escalation suggested for user:", userId, "confidence:", aiResult.confidence);
+      await env.DB.prepare(
+        "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)"
+      ).bind(generateId(), userId, "outbound", ruleMatch.response_type, ruleMatch.response_content).run();
+    } else {
+      // 2. ルール未マッチ: AI応答（RAG）
+      const aiResult = await generateAiReply(env, userId, textContent);
+      await sendReplyMessage(event.replyToken, [{ type: "text", text: aiResult.reply }], env.LINE_CHANNEL_ACCESS_TOKEN);
+
+      await env.DB.prepare(
+        "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)"
+      ).bind(generateId(), userId, "outbound", "text", aiResult.reply).run();
+
+      if (aiResult.shouldEscalate) {
+        console.log("Escalation suggested for user:", userId, "confidence:", aiResult.confidence);
+      }
     }
 
-    // Keyword-based scenario triggers
+    // 3. Keyword-based scenario triggers（ルールマッチに関わらず実行）
     const kwSids = await evaluateTriggers(env, "message_keyword", { text: textContent });
     for (const sid of kwSids) {
       await executeScenario(env, sid, userId);
@@ -156,6 +167,50 @@ async function handleUnfollowEvent(env: Env, event: any): Promise<void> {
   await env.DB.prepare(
     "UPDATE users SET status = ?, updated_at = datetime(\"now\") WHERE line_user_id = ?"
   ).bind("unfollowed", lineUserId).run();
+}
+
+interface AutoResponseRule {
+  id: string;
+  trigger_type: string;
+  trigger_pattern: string;
+  response_type: string;
+  response_content: string;
+}
+
+async function matchAutoResponseRule(env: Env, text: string): Promise<AutoResponseRule | null> {
+  const rows = await env.DB.prepare(
+    "SELECT id, trigger_type, trigger_pattern, response_type, response_content FROM auto_response_rules WHERE is_active = 1 ORDER BY priority DESC"
+  ).all();
+
+  for (const rule of (rows.results || []) as AutoResponseRule[]) {
+    let matched = false;
+    switch (rule.trigger_type) {
+      case "keyword":
+        matched = text.includes(rule.trigger_pattern);
+        break;
+      case "exact_match":
+        matched = text === rule.trigger_pattern;
+        break;
+      case "regex":
+        try { matched = new RegExp(rule.trigger_pattern).test(text); } catch {}
+        break;
+    }
+    if (matched) return rule;
+  }
+  return null;
+}
+
+function buildRuleReplyMessages(rule: AutoResponseRule): unknown[] {
+  switch (rule.response_type) {
+    case "text":
+      return [{ type: "text", text: rule.response_content }];
+    case "survey":
+      return [{ type: "text", text: rule.response_content }];
+    case "richmenu":
+      return [{ type: "text", text: rule.response_content }];
+    default:
+      return [{ type: "text", text: rule.response_content }];
+  }
 }
 
 async function handlePostbackEvent(env: Env, event: any): Promise<void> {
