@@ -99,9 +99,36 @@ export default function CustomersPage() {
     });
   };
 
+  const handleExport = async (endpoint: string, filename: string) => {
+    try {
+      const res = await fetchWithAuth(getApiUrl() + endpoint);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">顧客一覧</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">顧客一覧</h1>
+        <button
+          onClick={() => handleExport('/api/export/customers', `customers_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.csv`)}
+          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          CSVエクスポート
+        </button>
+      </div>
 
       {/* 検索・フィルタ */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">

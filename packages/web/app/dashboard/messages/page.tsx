@@ -87,12 +87,37 @@ export default function MessagesPage() {
     });
   };
 
+  const handleExport = async (endpoint: string, filename: string) => {
+    try {
+      const res = await fetchWithAuth(getApiUrl() + endpoint);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-8rem)] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* 左パネル: 顧客リスト */}
       <div className="w-1/3 border-r border-gray-200 overflow-y-auto">
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">メッセージ</h2>
+          <button
+            onClick={() => handleExport('/api/export/delivery-logs', `delivery_logs_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.csv`)}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            CSVエクスポート
+          </button>
         </div>
         {loadingList ? (
           <div className="p-4 space-y-3">

@@ -49,6 +49,9 @@ describe('Auth-protected routes require token', () => {
     ['GET', '/api/scheduled'],
     ['GET', '/api/auto-response'],
     ['GET', '/api/ab-tests'],
+    ['GET', '/api/export/customers'],
+    ['GET', '/api/export/delivery-logs'],
+    ['GET', '/api/export/ai-logs'],
   ];
 
   for (const [method, path] of protectedPaths) {

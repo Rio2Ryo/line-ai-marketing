@@ -18,6 +18,7 @@ import { analyticsRoutes } from "./routes/analytics";
 import { scheduledDeliveryRoutes } from "./routes/scheduled";
 import { autoResponseRoutes } from "./routes/auto-response";
 import { abTestRoutes } from "./routes/ab-tests";
+import { exportRoutes } from "./routes/export";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -58,6 +59,7 @@ app.route("/api/analytics", analyticsRoutes);
 app.route("/api/scheduled", scheduledDeliveryRoutes);
 app.route("/api/auto-response", autoResponseRoutes);
 app.route("/api/ab-tests", abTestRoutes);
+app.route("/api/export", exportRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

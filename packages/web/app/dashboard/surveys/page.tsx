@@ -142,6 +142,22 @@ export default function SurveysPage() {
     } catch { setResults(null); } finally { setResultsLoading(false); }
   };
 
+  const handleExport = async (endpoint: string, filename: string) => {
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, { headers: authHeaders() });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+    }
+  };
+
   // --- Question helpers ---
   const updateQ = (i: number, patch: Partial<QuestionDraft>) => {
     setQuestions(prev => prev.map((q, idx) => idx === i ? { ...q, ...patch } : q));
@@ -233,6 +249,15 @@ export default function SurveysPage() {
                   {s.is_active ? '非公開にする' : '公開する'}
                 </button>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleExport(`/api/export/surveys/${s.id}/responses`, `survey_responses_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.csv`)}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-medium"
+                    title="CSVエクスポート"
+                  >
+                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
                   <button onClick={() => handleViewResults(s.id)} className="text-sm text-blue-600 hover:text-blue-800 font-medium">結果</button>
                   <button onClick={() => handleDelete(s.id)} className="text-sm text-red-500 hover:text-red-700 font-medium">削除</button>
                 </div>
@@ -352,7 +377,18 @@ export default function SurveysPage() {
                       <h2 className="text-xl font-bold text-gray-900">{results.survey.title}</h2>
                       <p className="text-sm text-gray-500 mt-1">総回答数: {results.total_responses}件</p>
                     </div>
-                    <button onClick={() => { setShowResults(false); setResults(null); }} className="p-2 text-gray-400 hover:text-gray-600"><XIcon /></button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleExport(`/api/export/surveys/${results.survey.id}/responses`, `survey_responses_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.csv`)}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        CSVエクスポート
+                      </button>
+                      <button onClick={() => { setShowResults(false); setResults(null); }} className="p-2 text-gray-400 hover:text-gray-600"><XIcon /></button>
+                    </div>
                   </div>
                   {results.total_responses === 0 ? (
                     <div className="text-center py-8"><p className="text-gray-500">まだ回答がありません。</p></div>
