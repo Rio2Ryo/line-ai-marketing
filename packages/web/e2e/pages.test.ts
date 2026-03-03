@@ -46,6 +46,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/templates', name: 'テンプレート' },
     { path: '/dashboard/reports', name: '配信レポート' },
     { path: '/dashboard/calendar', name: '配信カレンダー' },
+    { path: '/dashboard/conversions', name: 'コンバージョン' },
     { path: '/dashboard/settings', name: '設定' },
   ];
 

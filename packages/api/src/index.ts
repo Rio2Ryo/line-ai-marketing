@@ -25,6 +25,7 @@ import { templateRoutes } from "./routes/templates";
 import { reportRoutes } from "./routes/reports";
 import { notificationRoutes } from "./routes/notifications";
 import { calendarRoutes } from "./routes/calendar";
+import { conversionRoutes } from "./routes/conversions";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -72,6 +73,7 @@ app.route("/api/templates", templateRoutes);
 app.route("/api/reports", reportRoutes);
 app.route("/api/notifications", notificationRoutes);
 app.route("/api/calendar", calendarRoutes);
+app.route("/api/conversions", conversionRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {
