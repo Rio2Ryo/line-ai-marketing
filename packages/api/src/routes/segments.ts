@@ -7,124 +7,301 @@ type AuthVars = { userId: string };
 export const segmentRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
 segmentRoutes.use('*', authMiddleware);
 
-interface SegmentCondition {
+// ─── V2 Types ───
+
+interface ConditionV2 {
+  type: 'tag' | 'attribute' | 'status' | 'last_message_days' | 'engagement_score' | 'conversion' | 'follow_source';
+  operator: 'eq' | 'neq' | 'contains' | 'gt' | 'lt' | 'gte' | 'lte' | 'exists' | 'not_exists';
+  field: string;
+  value: string;
+}
+
+interface ConditionGroupV2 {
+  logic: 'AND' | 'OR';
+  negate?: boolean;
+  items: (ConditionV2 | ConditionGroupV2)[];
+}
+
+// V1 backward compat
+interface SegmentConditionV1 {
   type: 'tag' | 'attribute' | 'status' | 'last_message_days';
   operator: 'eq' | 'neq' | 'contains' | 'gt' | 'lt';
   field: string;
   value: string;
 }
 
-function buildSegmentQuery(
-  conditions: SegmentCondition[],
-  selectFields: string
-): { sql: string; bindings: unknown[] } {
-  const joins: string[] = [];
-  const wheres: string[] = [];
-  const bindings: unknown[] = [];
-  let tagJoinIdx = 0;
-  let attrJoinIdx = 0;
+function isConditionGroup(item: ConditionV2 | ConditionGroupV2): item is ConditionGroupV2 {
+  return 'logic' in item && 'items' in item;
+}
 
-  for (const cond of conditions) {
-    switch (cond.type) {
-      case 'tag': {
-        const alias = `ut${tagJoinIdx++}`;
-        const tagAlias = `t${tagJoinIdx}`;
-        joins.push(
-          `INNER JOIN user_tags ${alias} ON u.id = ${alias}.user_id`
-        );
-        joins.push(
-          `INNER JOIN tags ${tagAlias} ON ${alias}.tag_id = ${tagAlias}.id`
-        );
-        if (cond.operator === 'eq') {
-          wheres.push(`${tagAlias}.name = ?`);
-          bindings.push(cond.value);
-        } else if (cond.operator === 'neq') {
-          wheres.push(`${tagAlias}.name != ?`);
-          bindings.push(cond.value);
-        } else if (cond.operator === 'contains') {
-          wheres.push(`${tagAlias}.name LIKE ?`);
-          bindings.push(`%${cond.value}%`);
-        }
-        break;
+// ─── V2 Query Builder ───
+
+let joinCounter = 0;
+
+function buildConditionSQL(
+  cond: ConditionV2,
+  bindings: unknown[]
+): { where: string; joins: string[] } {
+  const joins: string[] = [];
+
+  switch (cond.type) {
+    case 'tag': {
+      const utAlias = `ut${joinCounter}`;
+      const tAlias = `tg${joinCounter}`;
+      joinCounter++;
+
+      if (cond.operator === 'not_exists') {
+        return {
+          joins: [],
+          where: `u.id NOT IN (SELECT ut_ne.user_id FROM user_tags ut_ne JOIN tags t_ne ON ut_ne.tag_id = t_ne.id WHERE t_ne.name = ?)`,
+        };
       }
-      case 'attribute': {
-        const alias = `ua${attrJoinIdx++}`;
-        joins.push(
-          `INNER JOIN user_attributes ${alias} ON u.id = ${alias}.user_id AND ${alias}.key = ?`
-        );
+
+      joins.push(`INNER JOIN user_tags ${utAlias} ON u.id = ${utAlias}.user_id`);
+      joins.push(`INNER JOIN tags ${tAlias} ON ${utAlias}.tag_id = ${tAlias}.id`);
+
+      if (cond.operator === 'eq') {
+        bindings.push(cond.value);
+        return { joins, where: `${tAlias}.name = ?` };
+      }
+      if (cond.operator === 'neq') {
+        bindings.push(cond.value);
+        return { joins, where: `${tAlias}.name != ?` };
+      }
+      if (cond.operator === 'contains') {
+        bindings.push(`%${cond.value}%`);
+        return { joins, where: `${tAlias}.name LIKE ?` };
+      }
+      if (cond.operator === 'exists') {
+        return { joins, where: '1=1' };
+      }
+      bindings.push(cond.value);
+      return { joins, where: `${tAlias}.name = ?` };
+    }
+
+    case 'attribute': {
+      const alias = `ua${joinCounter}`;
+      joinCounter++;
+
+      if (cond.operator === 'not_exists') {
         bindings.push(cond.field);
+        return { joins: [], where: `u.id NOT IN (SELECT ua_ne.user_id FROM user_attributes ua_ne WHERE ua_ne.key = ?)` };
+      }
+      if (cond.operator === 'exists') {
+        bindings.push(cond.field);
+        return { joins: [], where: `u.id IN (SELECT ua_ex.user_id FROM user_attributes ua_ex WHERE ua_ex.key = ?)` };
+      }
+
+      joins.push(`INNER JOIN user_attributes ${alias} ON u.id = ${alias}.user_id AND ${alias}.key = ?`);
+      bindings.push(cond.field);
+
+      const opMap: Record<string, string> = {
+        eq: `${alias}.value = ?`,
+        neq: `${alias}.value != ?`,
+        contains: `${alias}.value LIKE ?`,
+        gt: `CAST(${alias}.value AS REAL) > ?`,
+        lt: `CAST(${alias}.value AS REAL) < ?`,
+        gte: `CAST(${alias}.value AS REAL) >= ?`,
+        lte: `CAST(${alias}.value AS REAL) <= ?`,
+      };
+
+      if (cond.operator === 'contains') {
+        bindings.push(`%${cond.value}%`);
+      } else if (['gt', 'lt', 'gte', 'lte'].includes(cond.operator)) {
+        bindings.push(Number(cond.value));
+      } else {
+        bindings.push(cond.value);
+      }
+      return { joins, where: opMap[cond.operator] || `${alias}.value = ?` };
+    }
+
+    case 'status': {
+      if (cond.operator === 'eq') {
+        bindings.push(cond.value);
+        return { joins: [], where: 'u.status = ?' };
+      }
+      if (cond.operator === 'neq') {
+        bindings.push(cond.value);
+        return { joins: [], where: 'u.status != ?' };
+      }
+      bindings.push(cond.value);
+      return { joins: [], where: 'u.status = ?' };
+    }
+
+    case 'last_message_days': {
+      const days = Number(cond.value);
+      if (cond.operator === 'lt') {
+        return { joins: [], where: `u.id IN (SELECT user_id FROM messages WHERE sent_at >= datetime('now', '-${days} days'))` };
+      }
+      if (cond.operator === 'gt') {
+        return { joins: [], where: `u.id NOT IN (SELECT user_id FROM messages WHERE sent_at >= datetime('now', '-${days} days'))` };
+      }
+      if (cond.operator === 'eq') {
+        bindings.push(days);
+        return { joins: [], where: `u.id IN (SELECT user_id FROM messages GROUP BY user_id HAVING CAST(julianday('now') - julianday(MAX(sent_at)) AS INTEGER) = ?)` };
+      }
+      return { joins: [], where: '1=1' };
+    }
+
+    case 'engagement_score': {
+      const alias = `es${joinCounter}`;
+      joinCounter++;
+
+      if (cond.field === 'rank') {
+        joins.push(`INNER JOIN engagement_scores ${alias} ON u.id = ${alias}.user_id`);
         if (cond.operator === 'eq') {
-          wheres.push(`${alias}.value = ?`);
           bindings.push(cond.value);
-        } else if (cond.operator === 'neq') {
-          wheres.push(`${alias}.value != ?`);
-          bindings.push(cond.value);
-        } else if (cond.operator === 'contains') {
-          wheres.push(`${alias}.value LIKE ?`);
-          bindings.push(`%${cond.value}%`);
-        } else if (cond.operator === 'gt') {
-          wheres.push(`CAST(${alias}.value AS REAL) > ?`);
-          bindings.push(Number(cond.value));
-        } else if (cond.operator === 'lt') {
-          wheres.push(`CAST(${alias}.value AS REAL) < ?`);
-          bindings.push(Number(cond.value));
+          return { joins, where: `${alias}.rank = ?` };
         }
-        break;
+        if (cond.operator === 'neq') {
+          bindings.push(cond.value);
+          return { joins, where: `${alias}.rank != ?` };
+        }
+        bindings.push(cond.value);
+        return { joins, where: `${alias}.rank = ?` };
       }
-      case 'status': {
+
+      // score field (numeric)
+      joins.push(`INNER JOIN engagement_scores ${alias} ON u.id = ${alias}.user_id`);
+      const scoreVal = Number(cond.value);
+      bindings.push(scoreVal);
+      const scoreOps: Record<string, string> = {
+        eq: `${alias}.total_score = ?`,
+        gt: `${alias}.total_score > ?`,
+        lt: `${alias}.total_score < ?`,
+        gte: `${alias}.total_score >= ?`,
+        lte: `${alias}.total_score <= ?`,
+      };
+      return { joins, where: scoreOps[cond.operator] || `${alias}.total_score = ?` };
+    }
+
+    case 'conversion': {
+      if (cond.operator === 'exists') {
+        // Has any conversion for this goal
+        bindings.push(cond.value);
+        return { joins: [], where: `u.id IN (SELECT cv.user_id FROM conversions cv JOIN conversion_goals cg ON cv.goal_id = cg.id WHERE cg.name = ?)` };
+      }
+      if (cond.operator === 'not_exists') {
+        bindings.push(cond.value);
+        return { joins: [], where: `u.id NOT IN (SELECT cv.user_id FROM conversions cv JOIN conversion_goals cg ON cv.goal_id = cg.id WHERE cg.name = ?)` };
+      }
+      // count-based: gt/lt number of conversions for a goal
+      if (cond.field === 'count') {
+        const cnt = Number(cond.value);
+        bindings.push(cnt);
+        return { joins: [], where: `(SELECT COUNT(*) FROM conversions WHERE user_id = u.id) ${cond.operator === 'gt' ? '>' : '<'} ?` };
+      }
+      bindings.push(cond.value);
+      return { joins: [], where: `u.id IN (SELECT cv.user_id FROM conversions cv JOIN conversion_goals cg ON cv.goal_id = cg.id WHERE cg.name = ?)` };
+    }
+
+    case 'follow_source': {
+      if (cond.field === 'type') {
+        bindings.push(cond.value);
         if (cond.operator === 'eq') {
-          wheres.push('u.status = ?');
-          bindings.push(cond.value);
-        } else if (cond.operator === 'neq') {
-          wheres.push('u.status != ?');
-          bindings.push(cond.value);
+          return { joins: [], where: `u.id IN (SELECT fe.user_id FROM follow_events fe JOIN follow_sources fs ON fe.source_id = fs.id WHERE fs.source_type = ?)` };
         }
-        break;
-      }
-      case 'last_message_days': {
-        const days = Number(cond.value);
-        if (cond.operator === 'lt') {
-          // Last message within N days
-          wheres.push(
-            `u.id IN (SELECT user_id FROM messages WHERE sent_at >= datetime('now', '-${days} days'))`
-          );
-        } else if (cond.operator === 'gt') {
-          // Last message more than N days ago (or never)
-          wheres.push(
-            `u.id NOT IN (SELECT user_id FROM messages WHERE sent_at >= datetime('now', '-${days} days'))`
-          );
-        } else if (cond.operator === 'eq') {
-          // Last message exactly N days ago (within that day)
-          wheres.push(
-            `u.id IN (SELECT user_id FROM messages GROUP BY user_id HAVING CAST(julianday('now') - julianday(MAX(sent_at)) AS INTEGER) = ?)`
-          );
-          bindings.push(days);
+        if (cond.operator === 'neq') {
+          return { joins: [], where: `u.id NOT IN (SELECT fe.user_id FROM follow_events fe JOIN follow_sources fs ON fe.source_id = fs.id WHERE fs.source_type = ?)` };
         }
-        break;
+        return { joins: [], where: `u.id IN (SELECT fe.user_id FROM follow_events fe JOIN follow_sources fs ON fe.source_id = fs.id WHERE fs.source_type = ?)` };
       }
+      // name match
+      bindings.push(cond.value);
+      if (cond.operator === 'eq') {
+        return { joins: [], where: `u.id IN (SELECT fe.user_id FROM follow_events fe JOIN follow_sources fs ON fe.source_id = fs.id WHERE fs.name = ?)` };
+      }
+      if (cond.operator === 'contains') {
+        bindings.pop();
+        bindings.push(`%${cond.value}%`);
+        return { joins: [], where: `u.id IN (SELECT fe.user_id FROM follow_events fe JOIN follow_sources fs ON fe.source_id = fs.id WHERE fs.name LIKE ?)` };
+      }
+      return { joins: [], where: `u.id IN (SELECT fe.user_id FROM follow_events fe JOIN follow_sources fs ON fe.source_id = fs.id WHERE fs.name = ?)` };
+    }
+
+    default:
+      return { joins: [], where: '1=1' };
+  }
+}
+
+function buildGroupSQL(
+  group: ConditionGroupV2,
+  bindings: unknown[]
+): { where: string; joins: string[] } {
+  const allJoins: string[] = [];
+  const whereParts: string[] = [];
+
+  for (const item of group.items) {
+    if (isConditionGroup(item)) {
+      const sub = buildGroupSQL(item, bindings);
+      allJoins.push(...sub.joins);
+      if (sub.where) whereParts.push(`(${sub.where})`);
+    } else {
+      const sub = buildConditionSQL(item, bindings);
+      allJoins.push(...sub.joins);
+      if (sub.where) whereParts.push(sub.where);
     }
   }
 
+  const connector = group.logic === 'OR' ? ' OR ' : ' AND ';
+  let where = whereParts.length > 0 ? whereParts.join(connector) : '1=1';
+  if (group.negate) {
+    where = `NOT (${where})`;
+  }
+
+  return { joins: allJoins, where };
+}
+
+function buildSegmentQueryV2(
+  group: ConditionGroupV2,
+  selectFields: string
+): { sql: string; bindings: unknown[] } {
+  joinCounter = 0;
+  const bindings: unknown[] = [];
+  const { joins, where } = buildGroupSQL(group, bindings);
+
   const joinClause = joins.length > 0 ? joins.join(' ') : '';
-  const whereClause = wheres.length > 0 ? 'WHERE ' + wheres.join(' AND ') : '';
+  const whereClause = where ? `WHERE ${where}` : '';
 
   const sql = `SELECT DISTINCT ${selectFields} FROM users u ${joinClause} ${whereClause}`;
   return { sql, bindings };
 }
 
-// POST /preview — Preview matched users for given segment conditions
+// ─── V1 backward compat ───
+
+function convertV1ToV2(conditions: SegmentConditionV1[]): ConditionGroupV2 {
+  return {
+    logic: 'AND',
+    items: conditions.map(c => ({
+      type: c.type,
+      operator: c.operator as ConditionV2['operator'],
+      field: c.field,
+      value: c.value,
+    })),
+  };
+}
+
+// ─── Endpoints ───
+
+// POST /preview
 segmentRoutes.post('/preview', async (c) => {
   try {
-    const body = await c.req.json<{ conditions: SegmentCondition[] }>();
-    if (!body.conditions || !Array.isArray(body.conditions) || body.conditions.length === 0) {
-      return c.json({ success: false, error: 'conditions is required and must be a non-empty array' }, 400);
+    const body = await c.req.json<{
+      conditions?: SegmentConditionV1[];
+      condition_group?: ConditionGroupV2;
+    }>();
+
+    let group: ConditionGroupV2;
+
+    if (body.condition_group) {
+      group = body.condition_group;
+    } else if (body.conditions && Array.isArray(body.conditions) && body.conditions.length > 0) {
+      group = convertV1ToV2(body.conditions);
+    } else {
+      return c.json({ success: false, error: 'conditions or condition_group required' }, 400);
     }
 
-    const { sql, bindings } = buildSegmentQuery(
-      body.conditions,
-      'u.id, u.display_name, u.picture_url'
-    );
-
+    const { sql, bindings } = buildSegmentQueryV2(group, 'u.id, u.display_name, u.picture_url');
     const result = await c.env.DB.prepare(sql).bind(...bindings).all();
     const users = result.results || [];
 
@@ -145,26 +322,30 @@ segmentRoutes.post('/preview', async (c) => {
   }
 });
 
-// POST /send — Execute segment delivery
+// POST /send
 segmentRoutes.post('/send', async (c) => {
   try {
     const body = await c.req.json<{
-      conditions: SegmentCondition[];
+      conditions?: SegmentConditionV1[];
+      condition_group?: ConditionGroupV2;
       message: { type: string; text: string };
     }>();
 
-    if (!body.conditions || !Array.isArray(body.conditions) || body.conditions.length === 0) {
-      return c.json({ success: false, error: 'conditions is required' }, 400);
+    let group: ConditionGroupV2;
+
+    if (body.condition_group) {
+      group = body.condition_group;
+    } else if (body.conditions && Array.isArray(body.conditions) && body.conditions.length > 0) {
+      group = convertV1ToV2(body.conditions);
+    } else {
+      return c.json({ success: false, error: 'conditions or condition_group required' }, 400);
     }
+
     if (!body.message || !body.message.text) {
       return c.json({ success: false, error: 'message.text is required' }, 400);
     }
 
-    const { sql, bindings } = buildSegmentQuery(
-      body.conditions,
-      'u.id, u.line_user_id'
-    );
-
+    const { sql, bindings } = buildSegmentQueryV2(group, 'u.id, u.line_user_id');
     const result = await c.env.DB.prepare(sql).bind(...bindings).all();
     const users = (result.results || []) as Array<{ id: string; line_user_id: string }>;
 
@@ -183,31 +364,21 @@ segmentRoutes.post('/send', async (c) => {
           c.env.LINE_CHANNEL_ACCESS_TOKEN
         );
 
-        // Record outbound message
         const msgId = crypto.randomUUID();
         await c.env.DB.prepare(
           'INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)'
-        )
-          .bind(msgId, user.id, 'outbound', 'text', body.message.text)
-          .run();
+        ).bind(msgId, user.id, 'outbound', 'text', body.message.text).run();
 
-        // Record delivery log (scenario_id IS NULL for segment delivery)
         await c.env.DB.prepare(
           "INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, sent_at) VALUES (?, NULL, NULL, ?, 'sent', datetime('now'))"
-        )
-          .bind(crypto.randomUUID(), user.id)
-          .run();
+        ).bind(crypto.randomUUID(), user.id).run();
 
         sent++;
       } catch (err) {
         console.error(`Failed to send to user ${user.id}:`, err);
-
         await c.env.DB.prepare(
           "INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, error_message) VALUES (?, NULL, NULL, ?, 'failed', ?)"
-        )
-          .bind(crypto.randomUUID(), user.id, String(err))
-          .run();
-
+        ).bind(crypto.randomUUID(), user.id, String(err)).run();
         failed++;
       }
     }
@@ -219,7 +390,7 @@ segmentRoutes.post('/send', async (c) => {
   }
 });
 
-// GET /history — Delivery history for segment sends
+// GET /history
 segmentRoutes.get('/history', async (c) => {
   try {
     const page = Number(c.req.query('page') || '1');
@@ -239,19 +410,12 @@ segmentRoutes.get('/history', async (c) => {
        WHERE dl.scenario_id IS NULL
        ORDER BY dl.created_at DESC
        LIMIT ? OFFSET ?`
-    )
-      .bind(limit, offset)
-      .all();
+    ).bind(limit, offset).all();
 
     return c.json({
       success: true,
       data: rows.results || [],
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
     console.error('Segment history error:', err);
