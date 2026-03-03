@@ -154,6 +154,11 @@ async function handleFollowEvent(env: Env, event: any): Promise<void> {
     ).bind(finalUserId, lineUserId, displayName, pictureUrl, statusMessage, "active").run();
   }
 
+  // Record follow event for tracking
+  await env.DB.prepare(
+    "INSERT INTO follow_events (id, source_id, user_id, line_user_id) VALUES (?, NULL, ?, ?)"
+  ).bind(generateId(), finalUserId, lineUserId).run();
+
   // Trigger follow-based scenarios
   const sids = await evaluateTriggers(env, "follow", {});
   for (const sid of sids) {

@@ -50,6 +50,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/ai-optimize', name: 'AI最適化' },
     { path: '/dashboard/delivery-queue', name: '配信キュー' },
     { path: '/dashboard/delivery-errors', name: 'エラー・リトライ' },
+    { path: '/dashboard/follow-sources', name: '経路分析' },
     { path: '/dashboard/engagement-scores', name: 'スコアリング' },
     { path: '/dashboard/settings', name: '設定' },
   ];
