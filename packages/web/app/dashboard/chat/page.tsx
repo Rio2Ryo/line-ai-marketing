@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
+import MediaMessage from '@/components/media-message';
 
 interface Conversation {
   id: string;
@@ -19,6 +20,7 @@ interface Message {
   direction: 'inbound' | 'outbound';
   content: string;
   message_type: string;
+  raw_json?: string;
   sent_at: string;
 }
 
@@ -575,9 +577,12 @@ export default function ChatPage() {
                                   : 'bg-white border border-gray-200 text-gray-900 rounded-2xl rounded-bl-sm'
                               }`}
                             >
-                              <p className="text-sm whitespace-pre-wrap break-words">
-                                {msg.content}
-                              </p>
+                              <MediaMessage
+                                messageType={msg.message_type}
+                                content={msg.content}
+                                rawJson={msg.raw_json}
+                                direction={msg.direction}
+                              />
                             </div>
                             <p
                               className={`text-xs text-gray-400 mt-1 ${

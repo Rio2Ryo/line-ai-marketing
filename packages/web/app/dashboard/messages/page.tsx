@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
+import MediaMessage from '@/components/media-message';
 
 interface CustomerListItem {
   id: string;
@@ -14,6 +15,7 @@ interface Message {
   direction: 'inbound' | 'outbound';
   content: string;
   message_type: string;
+  raw_json?: string;
   sent_at: string;
 }
 
@@ -231,7 +233,12 @@ export default function MessagesPage() {
                           : 'ml-0 mr-auto bg-gray-100 text-gray-900'
                       }`}
                     >
-                      <p className="text-sm">{msg.content}</p>
+                      <MediaMessage
+                        messageType={msg.message_type}
+                        content={msg.content}
+                        rawJson={msg.raw_json}
+                        direction={msg.direction}
+                      />
                       <p
                         className={`text-xs mt-1 ${
                           msg.direction === 'outbound'

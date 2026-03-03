@@ -96,3 +96,16 @@ export async function getUserProfile(userId: string, accessToken: string): Promi
   }
   return res.json() as Promise<LineProfile>;
 }
+
+export async function getMessageContent(messageId: string, accessToken: string): Promise<{ contentType: string; body: ReadableStream }> {
+  const res = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Content fetch failed: ${res.status}`);
+  }
+  return {
+    contentType: res.headers.get('content-type') || 'application/octet-stream',
+    body: res.body!,
+  };
+}

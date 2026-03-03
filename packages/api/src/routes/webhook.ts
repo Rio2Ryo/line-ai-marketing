@@ -80,12 +80,76 @@ async function handleMessageEvent(env: Env, event: any): Promise<void> {
 
   const userId = await findOrCreateUser(env, lineUserId);
   const msgType = event.message?.type || "unknown";
-  const textContent = msgType === "text" ? event.message.text : `[${msgType}]`;
 
-  // Save inbound message
+  // Build content based on message type
+  let textContent: string;
+  let contentJson: string | null = null;
+
+  switch (msgType) {
+    case "text":
+      textContent = event.message.text;
+      break;
+    case "image":
+      contentJson = JSON.stringify({
+        messageId: event.message.id,
+        contentProvider: event.message.contentProvider?.type || 'line',
+        imageSet: event.message.imageSet || null,
+      });
+      textContent = '[画像]';
+      break;
+    case "video":
+      contentJson = JSON.stringify({
+        messageId: event.message.id,
+        duration: event.message.duration || null,
+        contentProvider: event.message.contentProvider?.type || 'line',
+      });
+      textContent = '[動画]';
+      break;
+    case "audio":
+      contentJson = JSON.stringify({
+        messageId: event.message.id,
+        duration: event.message.duration || null,
+        contentProvider: event.message.contentProvider?.type || 'line',
+      });
+      textContent = '[音声]';
+      break;
+    case "file":
+      contentJson = JSON.stringify({
+        messageId: event.message.id,
+        fileName: event.message.fileName || 'unknown',
+        fileSize: event.message.fileSize || 0,
+      });
+      textContent = `[ファイル: ${event.message.fileName || 'unknown'}]`;
+      break;
+    case "location":
+      contentJson = JSON.stringify({
+        title: event.message.title || null,
+        address: event.message.address || null,
+        latitude: event.message.latitude,
+        longitude: event.message.longitude,
+      });
+      textContent = `[位置情報: ${event.message.address || `${event.message.latitude},${event.message.longitude}`}]`;
+      break;
+    case "sticker":
+      contentJson = JSON.stringify({
+        packageId: event.message.packageId,
+        stickerId: event.message.stickerId,
+        stickerResourceType: event.message.stickerResourceType || 'STATIC',
+      });
+      textContent = '[スタンプ]';
+      break;
+    default:
+      textContent = `[${msgType}]`;
+  }
+
+  // Save inbound message (content = display text, raw_json = full event + contentJson metadata)
+  const rawData = contentJson
+    ? JSON.stringify({ ...event, _mediaMetadata: JSON.parse(contentJson) })
+    : JSON.stringify(event);
+
   await env.DB.prepare(
     "INSERT INTO messages (id, user_id, direction, message_type, content, raw_json) VALUES (?, ?, ?, ?, ?, ?)"
-  ).bind(generateId(), userId, "inbound", msgType, textContent, JSON.stringify(event)).run();
+  ).bind(generateId(), userId, "inbound", msgType, textContent, rawData).run();
 
   // テキストメッセージ処理
   if (msgType === "text") {
@@ -114,12 +178,27 @@ async function handleMessageEvent(env: Env, event: any): Promise<void> {
       }
     }
 
-    // 3. Keyword-based scenario triggers（ルールマッチに関わらず実行）
+    // 3. Keyword-based scenario triggers
     const kwSids = await evaluateTriggers(env, "message_keyword", { text: textContent });
     for (const sid of kwSids) {
       await executeScenario(env, sid, userId);
     }
+  } else if (msgType === "location") {
+    // 位置情報: 自動返答
+    const addr = event.message.address || '不明な場所';
+    await sendReplyMessage(event.replyToken, [{ type: "text", text: `位置情報を受信しました: ${addr}` }], env.LINE_CHANNEL_ACCESS_TOKEN);
+    await env.DB.prepare(
+      "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)"
+    ).bind(generateId(), userId, "outbound", "text", `位置情報を受信しました: ${addr}`).run();
+  } else if (msgType === "image" || msgType === "video" || msgType === "audio" || msgType === "file") {
+    // メディア: 受信確認
+    const typeLabel = msgType === "image" ? "画像" : msgType === "video" ? "動画" : msgType === "audio" ? "音声" : "ファイル";
+    await sendReplyMessage(event.replyToken, [{ type: "text", text: `${typeLabel}を受信しました。確認いたします。` }], env.LINE_CHANNEL_ACCESS_TOKEN);
+    await env.DB.prepare(
+      "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)"
+    ).bind(generateId(), userId, "outbound", "text", `${typeLabel}を受信しました。確認いたします。`).run();
   }
+  // sticker: 既読のみ（返答なし）
 }
 
 async function handleFollowEvent(env: Env, event: any): Promise<void> {
