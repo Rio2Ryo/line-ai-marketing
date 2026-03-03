@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { removeToken } from "@/lib/auth";
+import { useTranslation, Locale } from '@/lib/i18n';
 
 interface HeaderProps {
   title: string;
@@ -9,6 +10,7 @@ interface HeaderProps {
 
 export default function Header({ title, onMenuToggle }: HeaderProps) {
   const router = useRouter();
+  const { t, locale, setLocale } = useTranslation();
 
   const handleLogout = () => {
     removeToken();
@@ -30,13 +32,31 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
         <h2 className="text-lg md:text-xl font-semibold text-gray-900">{title}</h2>
       </div>
       <div className="flex items-center gap-4">
+        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setLocale('ja')}
+            className={`px-2 py-1 text-xs font-medium transition-colors ${
+              locale === 'ja' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            JA
+          </button>
+          <button
+            onClick={() => setLocale('en')}
+            className={`px-2 py-1 text-xs font-medium transition-colors ${
+              locale === 'en' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            EN
+          </button>
+        </div>
         <div className="w-8 h-8 bg-[#06C755]/10 rounded-full flex items-center justify-center">
           <svg className="w-5 h-5 text-[#06C755]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         </div>
         <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-          ログアウト
+          {t('header.logout')}
         </button>
       </div>
     </header>

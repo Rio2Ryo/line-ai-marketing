@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslation } from '@/lib/i18n';
 
 const navItems = [
   {
-    name: 'ダッシュボード',
+    nameKey: 'nav.dashboard',
     href: '/dashboard',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -14,7 +15,7 @@ const navItems = [
     ),
   },
   {
-    name: '顧客管理',
+    nameKey: 'nav.customers',
     href: '/dashboard/customers',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,7 +24,7 @@ const navItems = [
     ),
   },
   {
-    name: 'チャット',
+    nameKey: 'nav.chat',
     href: '/dashboard/chat',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +33,7 @@ const navItems = [
     ),
   },
   {
-    name: 'シナリオ',
+    nameKey: 'nav.scenarios',
     href: '/dashboard/scenarios',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +42,7 @@ const navItems = [
     ),
   },
   {
-    name: 'セグメント配信',
+    nameKey: 'nav.segments',
     href: '/dashboard/segments',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +51,7 @@ const navItems = [
     ),
   },
   {
-    name: 'リッチメニュー',
+    nameKey: 'nav.richmenu',
     href: '/dashboard/richmenu',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +60,7 @@ const navItems = [
     ),
   },
   {
-    name: 'メッセージ',
+    nameKey: 'nav.messages',
     href: '/dashboard/messages',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +69,7 @@ const navItems = [
     ),
   },
   {
-    name: 'アンケート',
+    nameKey: 'nav.surveys',
     href: '/dashboard/surveys',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +78,7 @@ const navItems = [
     ),
   },
   {
-    name: 'ナレッジベース',
+    nameKey: 'nav.knowledge',
     href: '/dashboard/knowledge',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,7 +87,7 @@ const navItems = [
     ),
   },
   {
-    name: 'テンプレート',
+    nameKey: 'nav.templates',
     href: '/dashboard/templates',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +96,7 @@ const navItems = [
     ),
   },
   {
-    name: 'AIコンテンツ',
+    nameKey: 'nav.aiGenerate',
     href: '/dashboard/ai-generate',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +105,7 @@ const navItems = [
     ),
   },
   {
-    name: 'A/Bテスト',
+    nameKey: 'nav.abTests',
     href: '/dashboard/ab-tests',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,7 +114,7 @@ const navItems = [
     ),
   },
   {
-    name: 'AI自動分類',
+    nameKey: 'nav.aiClassify',
     href: '/dashboard/ai-classify',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +123,7 @@ const navItems = [
     ),
   },
   {
-    name: '経路分析',
+    nameKey: 'nav.followSources',
     href: '/dashboard/follow-sources',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,7 +132,7 @@ const navItems = [
     ),
   },
   {
-    name: 'スコアリング',
+    nameKey: 'nav.engagementScores',
     href: '/dashboard/engagement-scores',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +141,7 @@ const navItems = [
     ),
   },
   {
-    name: 'コンバージョン',
+    nameKey: 'nav.conversions',
     href: '/dashboard/conversions',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +150,7 @@ const navItems = [
     ),
   },
   {
-    name: 'AI最適化',
+    nameKey: 'nav.aiOptimize',
     href: '/dashboard/ai-optimize',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +159,7 @@ const navItems = [
     ),
   },
   {
-    name: 'AI分析',
+    nameKey: 'nav.analytics',
     href: '/dashboard/analytics',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +168,7 @@ const navItems = [
     ),
   },
   {
-    name: '予約配信',
+    nameKey: 'nav.scheduled',
     href: '/dashboard/scheduled',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +177,7 @@ const navItems = [
     ),
   },
   {
-    name: '自動応答',
+    nameKey: 'nav.autoResponse',
     href: '/dashboard/auto-response',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +186,7 @@ const navItems = [
     ),
   },
   {
-    name: '配信カレンダー',
+    nameKey: 'nav.calendar',
     href: '/dashboard/calendar',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +195,7 @@ const navItems = [
     ),
   },
   {
-    name: '配信キュー',
+    nameKey: 'nav.deliveryQueue',
     href: '/dashboard/delivery-queue',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +204,7 @@ const navItems = [
     ),
   },
   {
-    name: 'エラー・リトライ',
+    nameKey: 'nav.deliveryErrors',
     href: '/dashboard/delivery-errors',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +213,7 @@ const navItems = [
     ),
   },
   {
-    name: '配信レポート',
+    nameKey: 'nav.reports',
     href: '/dashboard/reports',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,7 +222,7 @@ const navItems = [
     ),
   },
   {
-    name: '設定',
+    nameKey: 'nav.settings',
     href: '/dashboard/settings',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,6 +240,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -306,7 +308,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <span className={isActive ? 'text-line' : 'text-gray-400'}>
                   {item.icon}
                 </span>
-                {item.name}
+                {t(item.nameKey)}
               </Link>
             );
           })}

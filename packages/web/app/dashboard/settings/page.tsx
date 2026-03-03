@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
+import { useTranslation, Locale } from '@/lib/i18n';
 
 export default function SettingsPage() {
+  const { t, locale, setLocale } = useTranslation();
   const [aiAutoReply, setAiAutoReply] = useState(true);
   const [escalationNotify, setEscalationNotify] = useState(true);
   const [notifySlack, setNotifySlack] = useState(false);
@@ -33,6 +35,9 @@ export default function SettingsPage() {
           setNotifyEmail(s.notify_email === 'true');
           setSlackWebhookUrl(s.slack_webhook_url || '');
           setNotifyEmailAddress(s.notify_email_address || '');
+          if (s.language === 'en') {
+            setLocale('en');
+          }
         }
         if (knowledgeRes.ok) {
           const data = await knowledgeRes.json();
@@ -94,7 +99,51 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">設定</h1>
+      <h1 className="text-2xl font-bold text-gray-900">{t('settings.title')}</h1>
+
+      {/* 言語設定セクション */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+          </svg>
+          {t('settings.language')}
+        </h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium text-gray-900">{t('settings.language')}</p>
+            <p className="text-sm text-gray-500">{t('settings.languageDesc')}</p>
+          </div>
+          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => {
+                setLocale('ja');
+                updateSetting('language', 'ja');
+              }}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                locale === 'ja'
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {t('settings.japanese')}
+            </button>
+            <button
+              onClick={() => {
+                setLocale('en');
+                updateSetting('language', 'en');
+              }}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                locale === 'en'
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {t('settings.english')}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* AI設定セクション */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -102,7 +151,7 @@ export default function SettingsPage() {
           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
-          AI設定
+          {t('settings.aiSettings')}
         </h3>
         <div className="space-y-5">
           <ToggleRow
@@ -135,7 +184,7 @@ export default function SettingsPage() {
           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
-          通知設定
+          {t('settings.notificationSettings')}
         </h3>
         <p className="text-sm text-gray-500 mb-5">エスカレーション発生時の通知先を設定します。エスカレーション通知がONの場合のみ送信されます。</p>
 
@@ -269,7 +318,7 @@ export default function SettingsPage() {
           <svg className="w-5 h-5 text-[#06C755]" fill="currentColor" viewBox="0 0 24 24">
             <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.066-.022.137-.033.194-.033.195 0 .375.104.515.254l2.449 3.32V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" />
           </svg>
-          LINE連携設定
+          {t('settings.lineSettings')}
         </h3>
         <div className="space-y-5">
           <div className="flex items-center justify-between">
@@ -306,7 +355,7 @@ export default function SettingsPage() {
           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
-          ナレッジベース
+          {t('settings.knowledgeBase')}
         </h3>
         <div className="flex items-center justify-between">
           <div>

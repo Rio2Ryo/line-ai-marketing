@@ -4,33 +4,34 @@ import { useState } from 'react';
 import Sidebar from '@/components/sidebar';
 import Header from '@/components/header';
 import { usePathname } from 'next/navigation';
+import { useTranslation, I18nProvider } from '@/lib/i18n';
 
-const pageTitles: Record<string, string> = {
-  '/dashboard': 'ダッシュボード',
-  '/dashboard/customers': '顧客管理',
-  '/dashboard/chat': 'リアルタイムチャット',
-  '/dashboard/scenarios': 'シナリオ',
-  '/dashboard/segments': 'セグメント配信',
-  '/dashboard/richmenu': 'リッチメニュー',
-  '/dashboard/messages': 'メッセージ',
-  '/dashboard/surveys': 'アンケート',
-  '/dashboard/knowledge': 'ナレッジベース',
-  '/dashboard/templates': 'テンプレートライブラリ',
-  '/dashboard/ai-generate': 'AIコンテンツ生成',
-  '/dashboard/ab-tests': 'A/Bテスト',
-  '/dashboard/ai-classify': 'AI自動分類',
-  '/dashboard/analytics': 'AI分析ダッシュボード',
-  '/dashboard/scheduled': '予約配信',
-  '/dashboard/auto-response': '自動応答ルール',
-  '/dashboard/reports': '配信レポート',
-  '/dashboard/calendar': '配信カレンダー',
-  '/dashboard/follow-sources': '友だち追加経路分析',
-  '/dashboard/engagement-scores': 'ユーザースコアリング',
-  '/dashboard/conversions': 'コンバージョン',
-  '/dashboard/ai-optimize': 'AIメッセージ最適化',
-  '/dashboard/delivery-queue': '配信キュー管理',
-  '/dashboard/delivery-errors': 'エラー・リトライ',
-  '/dashboard/settings': '設定',
+const pageKeys: Record<string, string> = {
+  '/dashboard': 'page.dashboard',
+  '/dashboard/customers': 'page.customers',
+  '/dashboard/chat': 'page.chat',
+  '/dashboard/scenarios': 'page.scenarios',
+  '/dashboard/segments': 'page.segments',
+  '/dashboard/richmenu': 'page.richmenu',
+  '/dashboard/messages': 'page.messages',
+  '/dashboard/surveys': 'page.surveys',
+  '/dashboard/knowledge': 'page.knowledge',
+  '/dashboard/templates': 'page.templates',
+  '/dashboard/ai-generate': 'page.aiGenerate',
+  '/dashboard/ab-tests': 'page.abTests',
+  '/dashboard/ai-classify': 'page.aiClassify',
+  '/dashboard/analytics': 'page.analytics',
+  '/dashboard/scheduled': 'page.scheduled',
+  '/dashboard/auto-response': 'page.autoResponse',
+  '/dashboard/reports': 'page.reports',
+  '/dashboard/calendar': 'page.calendar',
+  '/dashboard/follow-sources': 'page.followSources',
+  '/dashboard/engagement-scores': 'page.engagementScores',
+  '/dashboard/conversions': 'page.conversions',
+  '/dashboard/ai-optimize': 'page.aiOptimize',
+  '/dashboard/delivery-queue': 'page.deliveryQueue',
+  '/dashboard/delivery-errors': 'page.deliveryErrors',
+  '/dashboard/settings': 'page.settings',
 };
 
 export default function DashboardLayout({
@@ -38,8 +39,18 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <I18nProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </I18nProvider>
+  );
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const title = pageTitles[pathname] || 'ダッシュボード';
+  const { t } = useTranslation();
+  const titleKey = pageKeys[pathname] || 'page.dashboard';
+  const title = t(titleKey);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
