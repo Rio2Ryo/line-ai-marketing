@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard/auto-response': '自動応答ルール',
   '/dashboard/reports': '配信レポート',
   '/dashboard/calendar': '配信カレンダー',
+  '/dashboard/engagement-scores': 'ユーザースコアリング',
   '/dashboard/conversions': 'コンバージョン',
   '/dashboard/ai-optimize': 'AIメッセージ最適化',
   '/dashboard/delivery-errors': 'エラー・リトライ',
