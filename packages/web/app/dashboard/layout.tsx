@@ -25,6 +25,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard/calendar': '配信カレンダー',
   '/dashboard/conversions': 'コンバージョン',
   '/dashboard/ai-optimize': 'AIメッセージ最適化',
+  '/dashboard/delivery-errors': 'エラー・リトライ',
   '/dashboard/settings': '設定',
 };
 

@@ -48,6 +48,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/calendar', name: '配信カレンダー' },
     { path: '/dashboard/conversions', name: 'コンバージョン' },
     { path: '/dashboard/ai-optimize', name: 'AI最適化' },
+    { path: '/dashboard/delivery-errors', name: 'エラー・リトライ' },
     { path: '/dashboard/settings', name: '設定' },
   ];
 

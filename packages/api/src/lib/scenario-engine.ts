@@ -37,7 +37,9 @@ export async function executeScenario(env: Env, scenarioId: string, userId: stri
         await env.DB.prepare("INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, sent_at) VALUES (?, ?, ?, ?, 'sent', datetime('now'))").bind(crypto.randomUUID(), scenarioId, step.id, userId).run();
         await env.DB.prepare("INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, 'outbound', 'text', ?)").bind(crypto.randomUUID(), userId, step.message_content).run();
       } catch (e) {
-        await env.DB.prepare("INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, error_message) VALUES (?, ?, ?, ?, 'failed', ?)").bind(crypto.randomUUID(), scenarioId, step.id, userId, String(e)).run();
+        // Schedule first retry in 10 minutes (exponential backoff: 10, 20, 40 min)
+        const nextRetryAt = new Date(Date.now() + 10 * 60000).toISOString();
+        await env.DB.prepare("INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, error_message, retry_count, max_retries, next_retry_at) VALUES (?, ?, ?, ?, 'failed', ?, 0, 3, ?)").bind(crypto.randomUUID(), scenarioId, step.id, userId, String(e), nextRetryAt).run();
       }
     } else {
       const scheduledAt = new Date(Date.now() + step.delay_minutes * 60 * 1000).toISOString();
@@ -59,7 +61,8 @@ export async function processScheduledDeliveries(env: Env): Promise<{ processed:
       await env.DB.prepare("INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, 'outbound', 'text', ?)").bind(crypto.randomUUID(), row.user_id, row.message_content).run();
       sent++;
     } catch (e) {
-      await env.DB.prepare("UPDATE delivery_logs SET status = 'failed', error_message = ? WHERE id = ?").bind(String(e), row.id).run();
+      const nextRetryAt = new Date(Date.now() + 10 * 60000).toISOString();
+      await env.DB.prepare("UPDATE delivery_logs SET status = 'failed', error_message = ?, next_retry_at = ? WHERE id = ?").bind(String(e), nextRetryAt, row.id).run();
       failed++;
     }
   }
@@ -135,6 +138,46 @@ async function resolveTargetUsers(env: Env, targetType: string, targetConfig: st
   }
 
   return [];
+}
+
+export async function processRetries(env: Env): Promise<{ processed: number; sent: number; failed: number }> {
+  const retryable = await env.DB.prepare(
+    "SELECT dl.*, ss.message_content FROM delivery_logs dl LEFT JOIN scenario_steps ss ON dl.scenario_step_id = ss.id WHERE dl.status = 'failed' AND dl.next_retry_at IS NOT NULL AND dl.next_retry_at <= datetime('now') AND dl.retry_count < dl.max_retries LIMIT 30"
+  ).all();
+
+  let sent = 0, failed = 0;
+  for (const row of (retryable.results || []) as any[]) {
+    const user = await env.DB.prepare('SELECT line_user_id FROM users WHERE id = ?').bind(row.user_id).first<{ line_user_id: string }>();
+    if (!user) { failed++; continue; }
+
+    const content = row.message_content || '';
+    if (!content) { failed++; continue; }
+
+    const newRetryCount = (row.retry_count || 0) + 1;
+
+    try {
+      await pushMessage(env, user.line_user_id, content);
+      await env.DB.prepare(
+        "UPDATE delivery_logs SET status = 'sent', sent_at = datetime('now'), retry_count = ?, next_retry_at = NULL, error_message = NULL WHERE id = ?"
+      ).bind(newRetryCount, row.id).run();
+      await env.DB.prepare(
+        "INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, 'outbound', 'text', ?)"
+      ).bind(crypto.randomUUID(), row.user_id, content).run();
+      sent++;
+    } catch (e) {
+      const backoffMinutes = Math.pow(2, newRetryCount) * 5; // 10, 20, 40 min
+      const nextRetry = newRetryCount < (row.max_retries || 3)
+        ? new Date(Date.now() + backoffMinutes * 60000).toISOString()
+        : null;
+
+      await env.DB.prepare(
+        "UPDATE delivery_logs SET retry_count = ?, error_message = ?, next_retry_at = ? WHERE id = ?"
+      ).bind(newRetryCount, String(e), nextRetry, row.id).run();
+      failed++;
+    }
+  }
+
+  return { processed: (retryable.results || []).length, sent, failed };
 }
 
 async function pushMessage(env: Env, lineUserId: string, text: string): Promise<void> {
