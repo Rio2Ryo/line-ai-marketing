@@ -32,6 +32,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/ai-optimize': 'page.aiOptimize',
   '/dashboard/delivery-queue': 'page.deliveryQueue',
   '/dashboard/delivery-errors': 'page.deliveryErrors',
+  '/dashboard/import': 'page.import',
   '/dashboard/roles': 'page.roles',
   '/dashboard/settings': 'page.settings',
 };
