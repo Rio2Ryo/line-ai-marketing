@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Sidebar from '@/components/sidebar';
 import Header from '@/components/header';
 import { usePathname } from 'next/navigation';
@@ -28,13 +29,14 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const title = pageTitles[pathname] || 'ダッシュボード';
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Header title={title} />
-        <main className="flex-1 p-8">{children}</main>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header title={title} onMenuToggle={() => setSidebarOpen(true)} />
+        <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
     </div>
   );

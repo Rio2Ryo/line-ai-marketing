@@ -133,57 +133,90 @@ const navItems = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-line rounded-xl flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-white"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 2C6.48 2 2 5.82 2 10.5c0 2.95 1.95 5.55 4.87 7.03-.19.66-.68 2.46-.78 2.84-.13.5.18.49.38.36.16-.1 2.54-1.73 3.58-2.43.62.09 1.26.14 1.95.14 5.52 0 10-3.82 10-8.5S17.52 2 12 2z" />
+    <>
+      {/* Mobile overlay backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col
+          transform transition-transform duration-200 ease-in-out
+          md:static md:translate-x-0 md:z-auto
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-line rounded-xl flex items-center justify-center">
+              <svg
+                className="w-6 h-6 text-white"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2C6.48 2 2 5.82 2 10.5c0 2.95 1.95 5.55 4.87 7.03-.19.66-.68 2.46-.78 2.84-.13.5.18.49.38.36.16-.1 2.54-1.73 3.58-2.43.62.09 1.26.14 1.95.14 5.52 0 10-3.82 10-8.5S17.52 2 12 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="font-bold text-gray-900">LINE AI</h1>
+              <p className="text-xs text-gray-500">Marketing</p>
+            </div>
+          </div>
+          {/* Mobile close button */}
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </div>
-          <div>
-            <h1 className="font-bold text-gray-900">LINE AI</h1>
-            <p className="text-xs text-gray-500">Marketing</p>
-          </div>
+          </button>
         </div>
-      </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-200 ${
-                isActive
-                  ? 'bg-line/10 text-line'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }`}
-            >
-              <span className={isActive ? 'text-line' : 'text-gray-400'}>
-                {item.icon}
-              </span>
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-200 ${
+                  isActive
+                    ? 'bg-line/10 text-line'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <span className={isActive ? 'text-line' : 'text-gray-400'}>
+                  {item.icon}
+                </span>
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div className="p-4 border-t border-gray-200">
-        <p className="text-xs text-gray-400 text-center">v0.1.0</p>
-      </div>
-    </aside>
+        <div className="p-4 border-t border-gray-200">
+          <p className="text-xs text-gray-400 text-center">v0.1.0</p>
+        </div>
+      </aside>
+    </>
   );
 }
