@@ -14,6 +14,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard/messages': 'メッセージ',
   '/dashboard/surveys': 'アンケート',
   '/dashboard/knowledge': 'ナレッジベース',
+  '/dashboard/templates': 'テンプレートライブラリ',
   '/dashboard/ai-generate': 'AIコンテンツ生成',
   '/dashboard/ab-tests': 'A/Bテスト',
   '/dashboard/ai-classify': 'AI自動分類',

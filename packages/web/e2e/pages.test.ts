@@ -43,6 +43,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/auto-response', name: '自動応答' },
     { path: '/dashboard/ab-tests', name: 'A/Bテスト' },
     { path: '/dashboard/ai-classify', name: 'AI自動分類' },
+    { path: '/dashboard/templates', name: 'テンプレート' },
     { path: '/dashboard/settings', name: '設定' },
   ];
 
