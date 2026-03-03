@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard/engagement-scores': 'ユーザースコアリング',
   '/dashboard/conversions': 'コンバージョン',
   '/dashboard/ai-optimize': 'AIメッセージ最適化',
+  '/dashboard/delivery-queue': '配信キュー管理',
   '/dashboard/delivery-errors': 'エラー・リトライ',
   '/dashboard/settings': '設定',
 };
