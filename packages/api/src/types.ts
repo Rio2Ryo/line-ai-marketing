@@ -9,6 +9,7 @@ export interface Env {
   ANTHROPIC_RESOURCE: string;
   ENVIRONMENT: string;
   FRONTEND_URL: string;
+  LIFF_ID: string;
 }
 
 export interface User {

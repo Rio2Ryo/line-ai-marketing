@@ -57,6 +57,10 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/roles', name: '権限管理' },
     { path: '/dashboard/import', name: 'データインポート' },
     { path: '/dashboard/api-monitor', name: 'APIモニター' },
+    { path: '/liff', name: 'LIFF Home' },
+    { path: '/liff/surveys', name: 'LIFF Surveys' },
+    { path: '/liff/history', name: 'LIFF History' },
+    { path: '/liff/profile', name: 'LIFF Profile' },
   ];
 
   for (const { path, name } of pages) {
@@ -76,6 +80,7 @@ describe('Dynamic route placeholders', () => {
     '/dashboard/customers/_',
     '/dashboard/scenarios/_',
     '/dashboard/knowledge/_',
+    '/liff/surveys/_',
   ];
 
   for (const path of dynamicRoutes) {

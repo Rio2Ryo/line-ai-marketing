@@ -38,6 +38,7 @@ import { mediaRoutes } from "./routes/media";
 import { importRoutes } from "./routes/import";
 import { apiLoggerMiddleware } from "./middleware/api-logger";
 import { apiMonitorRoutes } from "./routes/api-monitor";
+import { liffRoutes } from "./routes/liff";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -99,6 +100,7 @@ app.route("/api/roles", roleRoutes);
 app.route("/api/media", mediaRoutes);
 app.route("/api/import", importRoutes);
 app.route("/api/api-monitor", apiMonitorRoutes);
+app.route("/api/liff", liffRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

@@ -12,6 +12,7 @@ database_id = "ef059a69-1ead-4614-a914-ac13a2e16e57"
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://line-ai-marketing.pages.dev"
 ANTHROPIC_RESOURCE = "goto-m5s4tqgq-eastus2"
+LIFF_ID = "pending-setup"
 
 # [triggers]
 # crons = ["*/5 * * * *"]

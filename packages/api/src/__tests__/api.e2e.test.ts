@@ -94,6 +94,9 @@ describe('Auth-protected routes require token', () => {
     ['GET', '/api/api-monitor/daily'],
     ['GET', '/api/api-monitor/errors'],
     ['GET', '/api/api-monitor/slow'],
+    ['GET', '/api/liff/profile'],
+    ['GET', '/api/liff/surveys'],
+    ['GET', '/api/liff/messages'],
   ];
 
   for (const [method, path] of protectedPaths) {
