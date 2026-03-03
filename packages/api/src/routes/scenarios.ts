@@ -58,13 +58,74 @@ scenarioRoutes.delete('/:id', async (c) => {
 
 scenarioRoutes.post('/:id/steps', async (c) => {
   const scenarioId = c.req.param('id');
-  const body = await c.req.json<{ message_type: string; message_content: string; delay_minutes?: number; condition_json?: string }>();
+  const body = await c.req.json<{ message_type: string; message_content: string; delay_minutes?: number; condition_json?: string; position_x?: number; position_y?: number; node_type?: string; next_step_id?: string | null; condition_true_step_id?: string | null; condition_false_step_id?: string | null }>();
   const maxRow = await c.env.DB.prepare('SELECT MAX(step_order) as mx FROM scenario_steps WHERE scenario_id = ?').bind(scenarioId).first<{ mx: number | null }>();
   const order = (maxRow?.mx || 0) + 1;
   const stepId = crypto.randomUUID();
-  await c.env.DB.prepare('INSERT INTO scenario_steps (id, scenario_id, step_order, message_type, message_content, delay_minutes, condition_json) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(stepId, scenarioId, order, body.message_type, body.message_content, body.delay_minutes || 0, body.condition_json || null).run();
+  await c.env.DB.prepare('INSERT INTO scenario_steps (id, scenario_id, step_order, message_type, message_content, delay_minutes, condition_json, position_x, position_y, node_type, next_step_id, condition_true_step_id, condition_false_step_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(stepId, scenarioId, order, body.message_type, body.message_content, body.delay_minutes || 0, body.condition_json || null, body.position_x ?? 0, body.position_y ?? 0, body.node_type || 'message', body.next_step_id || null, body.condition_true_step_id || null, body.condition_false_step_id || null).run();
   const step = await c.env.DB.prepare('SELECT * FROM scenario_steps WHERE id = ?').bind(stepId).first();
   return c.json({ success: true, data: step }, 201);
+});
+
+scenarioRoutes.put('/:id/steps/:stepId', async (c) => {
+  const stepId = c.req.param('stepId');
+  const body = await c.req.json<{
+    message_type?: string;
+    message_content?: string;
+    delay_minutes?: number;
+    condition_json?: string;
+    position_x?: number;
+    position_y?: number;
+    node_type?: string;
+    next_step_id?: string | null;
+    condition_true_step_id?: string | null;
+    condition_false_step_id?: string | null;
+  }>();
+
+  const sets: string[] = [];
+  const vals: any[] = [];
+
+  if (body.message_type !== undefined) { sets.push('message_type = ?'); vals.push(body.message_type); }
+  if (body.message_content !== undefined) { sets.push('message_content = ?'); vals.push(body.message_content); }
+  if (body.delay_minutes !== undefined) { sets.push('delay_minutes = ?'); vals.push(body.delay_minutes); }
+  if (body.condition_json !== undefined) { sets.push('condition_json = ?'); vals.push(body.condition_json); }
+  if (body.position_x !== undefined) { sets.push('position_x = ?'); vals.push(body.position_x); }
+  if (body.position_y !== undefined) { sets.push('position_y = ?'); vals.push(body.position_y); }
+  if (body.node_type !== undefined) { sets.push('node_type = ?'); vals.push(body.node_type); }
+  if (body.next_step_id !== undefined) { sets.push('next_step_id = ?'); vals.push(body.next_step_id); }
+  if (body.condition_true_step_id !== undefined) { sets.push('condition_true_step_id = ?'); vals.push(body.condition_true_step_id); }
+  if (body.condition_false_step_id !== undefined) { sets.push('condition_false_step_id = ?'); vals.push(body.condition_false_step_id); }
+
+  if (!sets.length) return c.json({ success: false, error: 'No fields' }, 400);
+
+  await c.env.DB.prepare('UPDATE scenario_steps SET ' + sets.join(', ') + ' WHERE id = ?').bind(...vals, stepId).run();
+  const updated = await c.env.DB.prepare('SELECT * FROM scenario_steps WHERE id = ?').bind(stepId).first();
+  return c.json({ success: true, data: updated });
+});
+
+scenarioRoutes.put('/:id/layout', async (c) => {
+  const scenarioId = c.req.param('id');
+  const body = await c.req.json<{ nodes: Array<{ id: string; position_x: number; position_y: number; next_step_id?: string | null; condition_true_step_id?: string | null; condition_false_step_id?: string | null }> }>();
+
+  if (!body.nodes || !Array.isArray(body.nodes)) {
+    return c.json({ success: false, error: 'nodes array required' }, 400);
+  }
+
+  for (const node of body.nodes) {
+    const sets: string[] = ['position_x = ?', 'position_y = ?'];
+    const vals: any[] = [node.position_x, node.position_y];
+
+    if (node.next_step_id !== undefined) { sets.push('next_step_id = ?'); vals.push(node.next_step_id); }
+    if (node.condition_true_step_id !== undefined) { sets.push('condition_true_step_id = ?'); vals.push(node.condition_true_step_id); }
+    if (node.condition_false_step_id !== undefined) { sets.push('condition_false_step_id = ?'); vals.push(node.condition_false_step_id); }
+
+    await c.env.DB.prepare(
+      'UPDATE scenario_steps SET ' + sets.join(', ') + ' WHERE id = ? AND scenario_id = ?'
+    ).bind(...vals, node.id, scenarioId).run();
+  }
+
+  const steps = await c.env.DB.prepare('SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC').bind(scenarioId).all();
+  return c.json({ success: true, data: steps.results || [] });
 });
 
 scenarioRoutes.delete('/:id/steps/:stepId', async (c) => {

@@ -38,6 +38,8 @@ describe('Auth-protected routes require token', () => {
     ['GET', '/api/customers'],
     ['GET', '/api/tags'],
     ['GET', '/api/scenarios'],
+    ['PUT', '/api/scenarios/test-id/steps/test-step-id'],
+    ['PUT', '/api/scenarios/test-id/layout'],
     ['GET', '/api/stats'],
     ['GET', '/api/ai'],
     ['GET', '/api/knowledge'],

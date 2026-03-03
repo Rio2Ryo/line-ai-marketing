@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
+import FlowEditor, { FlowNode } from '@/components/flow-editor';
 
 interface Step {
   id: string;
@@ -10,6 +11,13 @@ interface Step {
   message_type: 'text' | 'image' | 'flex';
   message_content: string;
   delay_minutes: number;
+  condition_json: string | null;
+  position_x: number;
+  position_y: number;
+  node_type: string;
+  next_step_id: string | null;
+  condition_true_step_id: string | null;
+  condition_false_step_id: string | null;
 }
 
 interface Scenario {
@@ -28,6 +36,7 @@ export default function ScenarioDetailClient() {
 
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'visual' | 'list'>('visual');
   const [newStep, setNewStep] = useState({
     message_type: 'text',
     message_content: '',
@@ -39,7 +48,7 @@ export default function ScenarioDetailClient() {
       const res = await fetchWithAuth(getApiUrl() + '/api/scenarios/' + id);
       if (res.ok) {
         const data = await res.json();
-        setScenario(data);
+        setScenario(data.data || data);
       }
     } catch (err) {
       console.error('Failed to fetch scenario:', err);
@@ -51,6 +60,8 @@ export default function ScenarioDetailClient() {
   useEffect(() => {
     fetchScenario();
   }, [fetchScenario]);
+
+  // ─── Legacy list-view handlers (kept intact) ───
 
   const handleDeleteStep = async (stepId: string) => {
     try {
@@ -94,6 +105,76 @@ export default function ScenarioDetailClient() {
     }
   };
 
+  // ─── Flow editor callbacks ───
+
+  const flowNodes: FlowNode[] = (scenario?.steps || []).map((step, index) => ({
+    id: step.id,
+    node_type: (step.node_type as FlowNode['node_type']) || 'message',
+    message_type: step.message_type,
+    message_content: step.message_content,
+    delay_minutes: step.delay_minutes,
+    condition_json: step.condition_json,
+    position_x: step.position_x || 300,
+    position_y: step.position_y || (140 + index * 140),
+    step_order: step.step_order,
+    next_step_id: step.next_step_id,
+    condition_true_step_id: step.condition_true_step_id,
+    condition_false_step_id: step.condition_false_step_id,
+  }));
+
+  const handleAddNode = async (node: { node_type: string; message_type: string; message_content: string; delay_minutes: number; condition_json: string | null; position_x: number; position_y: number }) => {
+    try {
+      await fetchWithAuth(getApiUrl() + '/api/scenarios/' + id + '/steps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(node),
+      });
+      fetchScenario();
+    } catch (err) {
+      console.error('Failed to add node:', err);
+    }
+  };
+
+  const handleUpdateNode = async (stepId: string, data: Partial<FlowNode>) => {
+    try {
+      await fetchWithAuth(getApiUrl() + '/api/scenarios/' + id + '/steps/' + stepId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      fetchScenario();
+    } catch (err) {
+      console.error('Failed to update node:', err);
+    }
+  };
+
+  const handleDeleteNode = async (stepId: string) => {
+    try {
+      await fetchWithAuth(
+        getApiUrl() + '/api/scenarios/' + id + '/steps/' + stepId,
+        { method: 'DELETE' }
+      );
+      fetchScenario();
+    } catch (err) {
+      console.error('Failed to delete node:', err);
+    }
+  };
+
+  const handleSaveLayout = async (nodes: Array<{ id: string; position_x: number; position_y: number; next_step_id: string | null; condition_true_step_id: string | null; condition_false_step_id: string | null }>) => {
+    try {
+      await fetchWithAuth(getApiUrl() + '/api/scenarios/' + id + '/layout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes }),
+      });
+      fetchScenario();
+    } catch (err) {
+      console.error('Failed to save layout:', err);
+    }
+  };
+
+  // ─── Badge helpers ───
+
   const getTriggerBadge = (type: string) => {
     switch (type) {
       case 'follow':
@@ -122,6 +203,8 @@ export default function ScenarioDetailClient() {
     }
   };
 
+  // ─── Loading state ───
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -137,6 +220,8 @@ export default function ScenarioDetailClient() {
     );
   }
 
+  // ─── Not found state ───
+
   if (!scenario) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -144,6 +229,8 @@ export default function ScenarioDetailClient() {
       </div>
     );
   }
+
+  // ─── Main render ───
 
   return (
     <div className="space-y-6">
@@ -204,116 +291,160 @@ export default function ScenarioDetailClient() {
         </div>
       </div>
 
-      {/* ステップタイムライン */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">ステップ</h2>
+      {/* ビューモード切替 */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setViewMode('visual')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            viewMode === 'visual'
+              ? 'bg-[#06C755] text-white'
+              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          ビジュアルエディタ
+        </button>
+        <button
+          onClick={() => setViewMode('list')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            viewMode === 'list'
+              ? 'bg-[#06C755] text-white'
+              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          リスト表示
+        </button>
+      </div>
 
-        {scenario.steps && scenario.steps.length > 0 ? (
-          <div className="relative ml-4">
-            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#06C755]" />
-            <div className="space-y-6">
-              {scenario.steps.map((step) => (
-                <div key={step.id} className="relative pl-8">
-                  <div className="absolute left-[-7px] top-1 w-4 h-4 bg-[#06C755] rounded-full" />
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-bold text-gray-700">
-                          #{step.step_order}
-                        </span>
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getMessageTypeBadge(step.message_type)}`}
+      {/* ─── Visual Editor Mode ─── */}
+      {viewMode === 'visual' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">フローエディタ</h2>
+          <FlowEditor
+            nodes={flowNodes}
+            onAddNode={handleAddNode}
+            onUpdateNode={handleUpdateNode}
+            onDeleteNode={handleDeleteNode}
+            onSaveLayout={handleSaveLayout}
+            triggerType={scenario.trigger_type}
+          />
+        </div>
+      )}
+
+      {/* ─── List View Mode (legacy) ─── */}
+      {viewMode === 'list' && (
+        <>
+          {/* ステップタイムライン */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">ステップ</h2>
+
+            {scenario.steps && scenario.steps.length > 0 ? (
+              <div className="relative ml-4">
+                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#06C755]" />
+                <div className="space-y-6">
+                  {scenario.steps.map((step) => (
+                    <div key={step.id} className="relative pl-8">
+                      <div className="absolute left-[-7px] top-1 w-4 h-4 bg-[#06C755] rounded-full" />
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-gray-700">
+                              #{step.step_order}
+                            </span>
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getMessageTypeBadge(step.message_type)}`}
+                            >
+                              {step.message_type}
+                            </span>
+                            {step.delay_minutes > 0 && (
+                              <span className="text-xs text-gray-400">
+                                ⏱ {step.delay_minutes}分後
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {step.message_content}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteStep(step.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors ml-4 text-lg"
                         >
-                          {step.message_type}
-                        </span>
-                        {step.delay_minutes > 0 && (
-                          <span className="text-xs text-gray-400">
-                            ⏱ {step.delay_minutes}分後
-                          </span>
-                        )}
+                          ×
+                        </button>
                       </div>
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        {step.message_content}
-                      </p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteStep(step.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors ml-4 text-lg"
-                    >
-                      ×
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">ステップなし</p>
+            )}
+          </div>
+
+          {/* ステップ追加フォーム */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              ステップ追加
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  メッセージタイプ
+                </label>
+                <select
+                  value={newStep.message_type}
+                  onChange={(e) =>
+                    setNewStep({ ...newStep, message_type: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:border-transparent"
+                >
+                  <option value="text">text</option>
+                  <option value="image">image</option>
+                  <option value="flex">flex</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  メッセージ内容
+                </label>
+                <textarea
+                  value={newStep.message_content}
+                  onChange={(e) =>
+                    setNewStep({ ...newStep, message_content: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:border-transparent"
+                  rows={3}
+                  placeholder="メッセージ内容を入力..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  遅延（分）
+                </label>
+                <input
+                  type="number"
+                  value={newStep.delay_minutes}
+                  onChange={(e) =>
+                    setNewStep({
+                      ...newStep,
+                      delay_minutes: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:border-transparent"
+                  min={0}
+                />
+              </div>
+              <button
+                onClick={handleAddStep}
+                disabled={!newStep.message_content}
+                className="px-4 py-2 bg-[#06C755] text-white rounded-lg text-sm font-medium hover:bg-[#05b34c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                追加
+              </button>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-gray-400">ステップなし</p>
-        )}
-      </div>
-
-      {/* ステップ追加フォーム */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          ステップ追加
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              メッセージタイプ
-            </label>
-            <select
-              value={newStep.message_type}
-              onChange={(e) =>
-                setNewStep({ ...newStep, message_type: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:border-transparent"
-            >
-              <option value="text">text</option>
-              <option value="image">image</option>
-              <option value="flex">flex</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              メッセージ内容
-            </label>
-            <textarea
-              value={newStep.message_content}
-              onChange={(e) =>
-                setNewStep({ ...newStep, message_content: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:border-transparent"
-              rows={3}
-              placeholder="メッセージ内容を入力..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              遅延（分）
-            </label>
-            <input
-              type="number"
-              value={newStep.delay_minutes}
-              onChange={(e) =>
-                setNewStep({
-                  ...newStep,
-                  delay_minutes: parseInt(e.target.value) || 0,
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:border-transparent"
-              min={0}
-            />
-          </div>
-          <button
-            onClick={handleAddStep}
-            disabled={!newStep.message_content}
-            className="px-4 py-2 bg-[#06C755] text-white rounded-lg text-sm font-medium hover:bg-[#05b34c] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            追加
-          </button>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
