@@ -26,6 +26,7 @@ import { reportRoutes } from "./routes/reports";
 import { notificationRoutes } from "./routes/notifications";
 import { calendarRoutes } from "./routes/calendar";
 import { conversionRoutes } from "./routes/conversions";
+import { aiOptimizeRoutes } from "./routes/ai-optimize";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -74,6 +75,7 @@ app.route("/api/reports", reportRoutes);
 app.route("/api/notifications", notificationRoutes);
 app.route("/api/calendar", calendarRoutes);
 app.route("/api/conversions", conversionRoutes);
+app.route("/api/ai-optimize", aiOptimizeRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {
