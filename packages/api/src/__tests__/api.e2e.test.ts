@@ -97,6 +97,8 @@ describe('Auth-protected routes require token', () => {
     ['GET', '/api/liff/profile'],
     ['GET', '/api/liff/surveys'],
     ['GET', '/api/liff/messages'],
+    ['POST', '/api/webhook-test/simulate'],
+    ['POST', '/api/webhook-test/cleanup'],
   ];
 
   for (const [method, path] of protectedPaths) {

@@ -39,6 +39,7 @@ import { importRoutes } from "./routes/import";
 import { apiLoggerMiddleware } from "./middleware/api-logger";
 import { apiMonitorRoutes } from "./routes/api-monitor";
 import { liffRoutes } from "./routes/liff";
+import { webhookTestRoutes } from "./routes/webhook-test";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -101,6 +102,7 @@ app.route("/api/media", mediaRoutes);
 app.route("/api/import", importRoutes);
 app.route("/api/api-monitor", apiMonitorRoutes);
 app.route("/api/liff", liffRoutes);
+app.route("/api/webhook-test", webhookTestRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {
