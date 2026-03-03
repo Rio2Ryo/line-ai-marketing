@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
 
@@ -9,24 +9,61 @@ export default function SettingsPage() {
   const [escalationNotify, setEscalationNotify] = useState(true);
   const [knowledgeCount, setKnowledgeCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchKnowledgeCount = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetchWithAuth(getApiUrl() + '/api/knowledge');
-        if (res.ok) {
-          const data = await res.json();
+        const [settingsRes, knowledgeRes] = await Promise.all([
+          fetchWithAuth(getApiUrl() + '/api/settings'),
+          fetchWithAuth(getApiUrl() + '/api/knowledge'),
+        ]);
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          const s = settingsData.data || {};
+          setAiAutoReply(s.ai_auto_reply !== 'false');
+          setEscalationNotify(s.escalation_notify !== 'false');
+        }
+        if (knowledgeRes.ok) {
+          const data = await knowledgeRes.json();
           const items = Array.isArray(data) ? data : data.items || [];
           setKnowledgeCount(items.length);
         }
       } catch (err) {
-        console.error('Failed to fetch knowledge count:', err);
+        console.error('Failed to fetch settings:', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchKnowledgeCount();
+    fetchData();
   }, []);
+
+  const updateSetting = useCallback(async (key: string, value: boolean) => {
+    setSavingKey(key);
+    try {
+      await fetchWithAuth(getApiUrl() + '/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: String(value) }),
+      });
+    } catch (err) {
+      console.error('Failed to save setting:', err);
+    } finally {
+      setTimeout(() => setSavingKey(null), 600);
+    }
+  }, []);
+
+  const handleToggleAiAutoReply = () => {
+    const newVal = !aiAutoReply;
+    setAiAutoReply(newVal);
+    updateSetting('ai_auto_reply', newVal);
+  };
+
+  const handleToggleEscalation = () => {
+    const newVal = !escalationNotify;
+    setEscalationNotify(newVal);
+    updateSetting('escalation_notify', newVal);
+  };
 
   return (
     <div className="space-y-6">
@@ -59,18 +96,23 @@ export default function SettingsPage() {
                 LINE受信メッセージにAIが自動で応答します
               </p>
             </div>
-            <button
-              onClick={() => setAiAutoReply(!aiAutoReply)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                aiAutoReply ? 'bg-[#06C755]' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  aiAutoReply ? 'translate-x-6' : 'translate-x-1'
+            <div className="flex items-center gap-2">
+              {savingKey === 'ai_auto_reply' && (
+                <span className="text-xs text-gray-400 animate-pulse">保存中...</span>
+              )}
+              <button
+                onClick={handleToggleAiAutoReply}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  aiAutoReply ? 'bg-[#06C755]' : 'bg-gray-300'
                 }`}
-              />
-            </button>
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    aiAutoReply ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* 応答モデル */}
@@ -94,18 +136,23 @@ export default function SettingsPage() {
                 AIが対応できない場合にオペレーターへ通知します
               </p>
             </div>
-            <button
-              onClick={() => setEscalationNotify(!escalationNotify)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                escalationNotify ? 'bg-[#06C755]' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  escalationNotify ? 'translate-x-6' : 'translate-x-1'
+            <div className="flex items-center gap-2">
+              {savingKey === 'escalation_notify' && (
+                <span className="text-xs text-gray-400 animate-pulse">保存中...</span>
+              )}
+              <button
+                onClick={handleToggleEscalation}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  escalationNotify ? 'bg-[#06C755]' : 'bg-gray-300'
                 }`}
-              />
-            </button>
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    escalationNotify ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
