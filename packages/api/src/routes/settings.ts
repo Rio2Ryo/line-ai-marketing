@@ -30,7 +30,7 @@ settingsRoutes.put("/", async (c) => {
       return c.json({ success: false, error: "No settings provided" }, 400);
     }
 
-    const allowedKeys = ["ai_auto_reply", "escalation_notify"];
+    const allowedKeys = ["ai_auto_reply", "escalation_notify", "notify_slack", "notify_email", "slack_webhook_url", "notify_email_address"];
     for (const [key, value] of entries) {
       if (!allowedKeys.includes(key)) {
         return c.json({ success: false, error: `Invalid setting key: ${key}` }, 400);

@@ -81,6 +81,81 @@ customerRoutes.delete('/:id/tags/:tagId', async (c) => {
   return c.json({ success: true });
 });
 
+// GET /:id/journey — ユーザージャーニータイムライン
+customerRoutes.get('/:id/journey', async (c) => {
+  const id = c.req.param('id');
+  const limit = Math.min(parseInt(c.req.query('limit') || '100'), 200);
+
+  const user = await c.env.DB.prepare('SELECT id, display_name, created_at FROM users WHERE id = ?').bind(id).first<{ id: string; display_name: string | null; created_at: string }>();
+  if (!user) return c.json({ success: false, error: 'Not found' }, 404);
+
+  // Collect events from multiple tables in parallel
+  const [msgs, deliveries, tagAssigns, aiChats, surveyResp, classifications] = await Promise.all([
+    // Messages
+    c.env.DB.prepare(
+      `SELECT id, direction, message_type, content, sent_at as event_at FROM messages WHERE user_id = ? ORDER BY sent_at DESC LIMIT ?`
+    ).bind(id, limit).all(),
+    // Delivery logs
+    c.env.DB.prepare(
+      `SELECT dl.id, dl.status, dl.sent_at, dl.created_at as event_at, dl.error_message, COALESCE(s.name, '手動配信') as scenario_name
+       FROM delivery_logs dl LEFT JOIN scenarios s ON dl.scenario_id = s.id
+       WHERE dl.user_id = ? ORDER BY dl.created_at DESC LIMIT ?`
+    ).bind(id, limit).all(),
+    // Tag assignments
+    c.env.DB.prepare(
+      `SELECT ut.assigned_at as event_at, t.name as tag_name, t.color as tag_color
+       FROM user_tags ut JOIN tags t ON ut.tag_id = t.id WHERE ut.user_id = ? ORDER BY ut.assigned_at DESC LIMIT ?`
+    ).bind(id, limit).all(),
+    // AI chat logs
+    c.env.DB.prepare(
+      `SELECT id, user_message, ai_reply, confidence, should_escalate, created_at as event_at
+       FROM ai_chat_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`
+    ).bind(id, limit).all(),
+    // Survey responses
+    c.env.DB.prepare(
+      `SELECT sr.id, sr.submitted_at as event_at, s.title as survey_title
+       FROM survey_responses sr JOIN surveys s ON sr.survey_id = s.id WHERE sr.user_id = ? ORDER BY sr.submitted_at DESC LIMIT ?`
+    ).bind(id, limit).all(),
+    // AI classifications
+    c.env.DB.prepare(
+      `SELECT id, suggested_tags, segment, reasoning, status, created_at as event_at
+       FROM ai_classifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`
+    ).bind(id, limit).all(),
+  ]);
+
+  // Build unified timeline
+  type Event = { type: string; event_at: string; data: Record<string, any> };
+  const events: Event[] = [];
+
+  // Follow event
+  events.push({ type: 'follow', event_at: user.created_at, data: { display_name: user.display_name } });
+
+  for (const m of (msgs.results || []) as any[]) {
+    events.push({ type: m.direction === 'inbound' ? 'message_in' : 'message_out', event_at: m.event_at, data: { content: m.content, message_type: m.message_type } });
+  }
+  for (const d of (deliveries.results || []) as any[]) {
+    events.push({ type: 'delivery', event_at: d.event_at, data: { status: d.status, scenario_name: d.scenario_name, error_message: d.error_message, sent_at: d.sent_at } });
+  }
+  for (const t of (tagAssigns.results || []) as any[]) {
+    events.push({ type: 'tag_assigned', event_at: t.event_at, data: { tag_name: t.tag_name, tag_color: t.tag_color } });
+  }
+  for (const a of (aiChats.results || []) as any[]) {
+    events.push({ type: 'ai_chat', event_at: a.event_at, data: { user_message: a.user_message, ai_reply: a.ai_reply, confidence: a.confidence, should_escalate: a.should_escalate } });
+  }
+  for (const s of (surveyResp.results || []) as any[]) {
+    events.push({ type: 'survey_response', event_at: s.event_at, data: { survey_title: s.survey_title } });
+  }
+  for (const cl of (classifications.results || []) as any[]) {
+    events.push({ type: 'ai_classification', event_at: cl.event_at, data: { segment: cl.segment, suggested_tags: cl.suggested_tags, reasoning: cl.reasoning, status: cl.status } });
+  }
+
+  // Sort by date descending, take limit
+  events.sort((a, b) => new Date(b.event_at).getTime() - new Date(a.event_at).getTime());
+  const trimmed = events.slice(0, limit);
+
+  return c.json({ success: true, data: { user_id: id, events: trimmed, total: events.length } });
+});
+
 // POST /:id/attributes
 customerRoutes.post('/:id/attributes', async (c) => {
   const userId = c.req.param('id');

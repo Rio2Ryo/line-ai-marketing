@@ -21,6 +21,8 @@ const pageTitles: Record<string, string> = {
   '/dashboard/analytics': 'AI分析ダッシュボード',
   '/dashboard/scheduled': '予約配信',
   '/dashboard/auto-response': '自動応答ルール',
+  '/dashboard/reports': '配信レポート',
+  '/dashboard/calendar': '配信カレンダー',
   '/dashboard/settings': '設定',
 };
 

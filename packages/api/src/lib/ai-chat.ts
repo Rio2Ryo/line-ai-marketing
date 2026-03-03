@@ -1,4 +1,5 @@
 import { Env } from '../types';
+import { notifyEscalation } from './notify';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -144,7 +145,7 @@ ${knowledgeContext ? `## ナレッジベース（参考情報）\n${knowledgeCon
       responseTime
     ).run();
 
-    // エスカレーション自動作成
+    // エスカレーション自動作成 + マルチチャネル通知
     if (shouldEscalate) {
       await env.DB.prepare(
         "INSERT INTO escalations (id, user_id, ai_chat_log_id, status, priority) VALUES (?, ?, ?, 'open', ?)"
@@ -154,6 +155,11 @@ ${knowledgeContext ? `## ナレッジベース（参考情報）\n${knowledgeCon
         logId,
         confidence < 0.2 ? 'high' : 'normal'
       ).run();
+
+      // 非同期で通知送信（レスポンスをブロックしない）
+      notifyEscalation(env, userId, userMessage, replyText, confidence).catch(e =>
+        console.error('Escalation notification failed:', e)
+      );
     }
   } catch (e) {
     console.error('Failed to log AI chat:', e);

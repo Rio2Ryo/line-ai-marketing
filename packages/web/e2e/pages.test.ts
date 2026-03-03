@@ -44,6 +44,8 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/ab-tests', name: 'A/Bテスト' },
     { path: '/dashboard/ai-classify', name: 'AI自動分類' },
     { path: '/dashboard/templates', name: 'テンプレート' },
+    { path: '/dashboard/reports', name: '配信レポート' },
+    { path: '/dashboard/calendar', name: '配信カレンダー' },
     { path: '/dashboard/settings', name: '設定' },
   ];
 
