@@ -28,6 +28,7 @@ const en: Translations = {
     reports: 'Reports',
     import: 'Import',
     roles: 'Roles',
+    apiMonitor: 'API Monitor',
     settings: 'Settings',
   },
   page: {
@@ -57,6 +58,7 @@ const en: Translations = {
     deliveryErrors: 'Errors & Retry',
     import: 'Data Import',
     roles: 'Role Management',
+    apiMonitor: 'API Usage Monitoring',
     settings: 'Settings',
   },
   common: {

@@ -56,6 +56,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/settings', name: '設定' },
     { path: '/dashboard/roles', name: '権限管理' },
     { path: '/dashboard/import', name: 'データインポート' },
+    { path: '/dashboard/api-monitor', name: 'APIモニター' },
   ];
 
   for (const { path, name } of pages) {

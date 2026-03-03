@@ -36,6 +36,8 @@ import { widgetRoutes } from "./routes/widgets";
 import { roleRoutes } from "./routes/roles";
 import { mediaRoutes } from "./routes/media";
 import { importRoutes } from "./routes/import";
+import { apiLoggerMiddleware } from "./middleware/api-logger";
+import { apiMonitorRoutes } from "./routes/api-monitor";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -50,6 +52,8 @@ app.use("*", cors({
   allowHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
+
+app.use("*", apiLoggerMiddleware);
 
 app.get("/", (c) => c.json({
   status: "ok",
@@ -94,6 +98,7 @@ app.route("/api/widgets", widgetRoutes);
 app.route("/api/roles", roleRoutes);
 app.route("/api/media", mediaRoutes);
 app.route("/api/import", importRoutes);
+app.route("/api/api-monitor", apiMonitorRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

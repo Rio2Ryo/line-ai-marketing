@@ -34,6 +34,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/delivery-errors': 'page.deliveryErrors',
   '/dashboard/import': 'page.import',
   '/dashboard/roles': 'page.roles',
+  '/dashboard/api-monitor': 'page.apiMonitor',
   '/dashboard/settings': 'page.settings',
 };
 

@@ -26,6 +26,7 @@ const ja = {
     reports: '配信レポート',
     import: 'データインポート',
     roles: '権限管理',
+    apiMonitor: 'APIモニター',
     settings: '設定',
   },
   page: {
@@ -55,6 +56,7 @@ const ja = {
     deliveryErrors: 'エラー・リトライ',
     import: 'データインポート',
     roles: '権限管理',
+    apiMonitor: 'API利用量モニタリング',
     settings: '設定',
   },
   common: {
