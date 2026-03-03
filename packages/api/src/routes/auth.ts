@@ -138,8 +138,8 @@ authRoutes.get('/line/callback', async (c) => {
     } else {
       userId = generateId();
       await c.env.DB.prepare(
-        `INSERT INTO users (id, line_user_id, display_name, picture_url, status_message, access_token, refresh_token, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        `INSERT INTO users (id, line_user_id, display_name, picture_url, status_message, access_token, refresh_token, status, role, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
       )
         .bind(
           userId,
@@ -149,7 +149,8 @@ authRoutes.get('/line/callback', async (c) => {
           profile.statusMessage || null,
           tokenData.access_token,
           tokenData.refresh_token || null,
-          'active'
+          'active',
+          'operator'
         )
         .run();
     }
@@ -177,7 +178,7 @@ authRoutes.get('/me', authMiddleware, async (c) => {
   const userId = c.get('userId');
 
   const user = await c.env.DB.prepare(
-    'SELECT id, line_user_id, display_name, picture_url, status_message, status, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, line_user_id, display_name, picture_url, status_message, status, role, created_at, updated_at FROM users WHERE id = ?'
   )
     .bind(userId)
     .first();

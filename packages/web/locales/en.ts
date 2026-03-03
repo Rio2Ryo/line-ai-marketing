@@ -26,6 +26,7 @@ const en: Translations = {
     deliveryQueue: 'Delivery Queue',
     deliveryErrors: 'Errors & Retry',
     reports: 'Reports',
+    roles: 'Roles',
     settings: 'Settings',
   },
   page: {
@@ -53,6 +54,7 @@ const en: Translations = {
     aiOptimize: 'AI Message Optimization',
     deliveryQueue: 'Delivery Queue',
     deliveryErrors: 'Errors & Retry',
+    roles: 'Role Management',
     settings: 'Settings',
   },
   common: {

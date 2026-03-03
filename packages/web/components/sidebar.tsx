@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n';
+import { useRole } from '@/lib/role';
 
 const navItems = [
   {
@@ -222,6 +223,16 @@ const navItems = [
     ),
   },
   {
+    nameKey: 'nav.roles',
+    href: '/dashboard/roles',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+    adminOnly: true as const,
+  },
+  {
     nameKey: 'nav.settings',
     href: '/dashboard/settings',
     icon: (
@@ -230,6 +241,7 @@ const navItems = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
+    adminOnly: true as const,
   },
 ];
 
@@ -241,6 +253,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { role } = useRole();
 
   return (
     <>
@@ -289,7 +302,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
+          {navItems.filter(item => !('adminOnly' in item && item.adminOnly) || role === 'admin').map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== '/dashboard' && pathname.startsWith(item.href));

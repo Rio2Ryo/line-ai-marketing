@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { removeToken } from "@/lib/auth";
 import { useTranslation, Locale } from '@/lib/i18n';
+import { useRole } from '@/lib/role';
 
 interface HeaderProps {
   title: string;
@@ -11,6 +12,7 @@ interface HeaderProps {
 export default function Header({ title, onMenuToggle }: HeaderProps) {
   const router = useRouter();
   const { t, locale, setLocale } = useTranslation();
+  const { role } = useRole();
 
   const handleLogout = () => {
     removeToken();
@@ -50,6 +52,16 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
             EN
           </button>
         </div>
+        {/* Role badge */}
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          role === 'admin' ? 'bg-purple-100 text-purple-800' :
+          role === 'operator' ? 'bg-blue-100 text-blue-800' :
+          'bg-gray-100 text-gray-600'
+        }`}>
+          {role === 'admin' ? (locale === 'ja' ? '管理者' : 'Admin') :
+           role === 'operator' ? (locale === 'ja' ? 'オペレーター' : 'Operator') :
+           locale === 'ja' ? '閲覧者' : 'Viewer'}
+        </span>
         <div className="w-8 h-8 bg-[#06C755]/10 rounded-full flex items-center justify-center">
           <svg className="w-5 h-5 text-[#06C755]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

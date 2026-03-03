@@ -4,6 +4,7 @@ import { verifyJwt } from '../lib/jwt';
 
 type Variables = {
   userId: string;
+  userRole: string;
 };
 
 export async function authMiddleware(
@@ -33,5 +34,22 @@ export async function authMiddleware(
   }
 
   c.set('userId', payload.sub);
+
+  // Fetch user role from DB
+  const user = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?')
+    .bind(payload.sub)
+    .first();
+  c.set('userRole', (user?.role as string) || 'viewer');
+
   await next();
+}
+
+export function roleMiddleware(...allowedRoles: string[]) {
+  return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
+    const role = c.get('userRole');
+    if (!allowedRoles.includes(role)) {
+      return c.json({ success: false, error: 'Insufficient permissions' }, 403);
+    }
+    await next();
+  };
 }

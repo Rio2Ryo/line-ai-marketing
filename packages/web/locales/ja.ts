@@ -24,6 +24,7 @@ const ja = {
     deliveryQueue: '配信キュー',
     deliveryErrors: 'エラー・リトライ',
     reports: '配信レポート',
+    roles: '権限管理',
     settings: '設定',
   },
   page: {
@@ -51,6 +52,7 @@ const ja = {
     aiOptimize: 'AIメッセージ最適化',
     deliveryQueue: '配信キュー管理',
     deliveryErrors: 'エラー・リトライ',
+    roles: '権限管理',
     settings: '設定',
   },
   common: {

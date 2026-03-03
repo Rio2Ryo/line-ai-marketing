@@ -5,6 +5,7 @@ import Sidebar from '@/components/sidebar';
 import Header from '@/components/header';
 import { usePathname } from 'next/navigation';
 import { useTranslation, I18nProvider } from '@/lib/i18n';
+import { RoleProvider } from '@/lib/role';
 
 const pageKeys: Record<string, string> = {
   '/dashboard': 'page.dashboard',
@@ -31,6 +32,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/ai-optimize': 'page.aiOptimize',
   '/dashboard/delivery-queue': 'page.deliveryQueue',
   '/dashboard/delivery-errors': 'page.deliveryErrors',
+  '/dashboard/roles': 'page.roles',
   '/dashboard/settings': 'page.settings',
 };
 
@@ -41,7 +43,9 @@ export default function DashboardLayout({
 }) {
   return (
     <I18nProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      <RoleProvider>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </RoleProvider>
     </I18nProvider>
   );
 }

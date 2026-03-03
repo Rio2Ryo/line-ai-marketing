@@ -33,6 +33,7 @@ import { deliveryQueueRoutes } from "./routes/delivery-queue";
 import { followSourceRoutes } from "./routes/follow-sources";
 import { chatRoutes } from "./routes/chat";
 import { widgetRoutes } from "./routes/widgets";
+import { roleRoutes } from "./routes/roles";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -88,6 +89,7 @@ app.route("/api/delivery-queue", deliveryQueueRoutes);
 app.route("/api/follow-sources", followSourceRoutes);
 app.route("/api/chat", chatRoutes);
 app.route("/api/widgets", widgetRoutes);
+app.route("/api/roles", roleRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {
