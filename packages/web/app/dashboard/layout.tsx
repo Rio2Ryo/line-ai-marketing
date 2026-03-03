@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 const pageTitles: Record<string, string> = {
   '/dashboard': 'ダッシュボード',
   '/dashboard/customers': '顧客管理',
+  '/dashboard/chat': 'リアルタイムチャット',
   '/dashboard/scenarios': 'シナリオ',
   '/dashboard/segments': 'セグメント配信',
   '/dashboard/richmenu': 'リッチメニュー',

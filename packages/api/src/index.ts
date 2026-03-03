@@ -31,6 +31,7 @@ import { deliveryErrorRoutes } from "./routes/delivery-errors";
 import { engagementScoreRoutes } from "./routes/engagement-scores";
 import { deliveryQueueRoutes } from "./routes/delivery-queue";
 import { followSourceRoutes } from "./routes/follow-sources";
+import { chatRoutes } from "./routes/chat";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -84,6 +85,7 @@ app.route("/api/delivery-errors", deliveryErrorRoutes);
 app.route("/api/engagement-scores", engagementScoreRoutes);
 app.route("/api/delivery-queue", deliveryQueueRoutes);
 app.route("/api/follow-sources", followSourceRoutes);
+app.route("/api/chat", chatRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

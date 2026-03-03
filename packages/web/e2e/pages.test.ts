@@ -31,6 +31,7 @@ describe('Dashboard pages return 200', () => {
   const pages = [
     { path: '/dashboard', name: 'ダッシュボード' },
     { path: '/dashboard/customers', name: '顧客管理' },
+    { path: '/dashboard/chat', name: 'チャット' },
     { path: '/dashboard/scenarios', name: 'シナリオ' },
     { path: '/dashboard/segments', name: 'セグメント配信' },
     { path: '/dashboard/richmenu', name: 'リッチメニュー' },
