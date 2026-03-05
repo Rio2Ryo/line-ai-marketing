@@ -27,6 +27,7 @@ const ja = {
     import: 'データインポート',
     roles: '権限管理',
     apiMonitor: 'APIモニター',
+    notifications: '通知',
     settings: '設定',
   },
   page: {
@@ -57,6 +58,7 @@ const ja = {
     import: 'データインポート',
     roles: '権限管理',
     apiMonitor: 'API利用量モニタリング',
+    notifications: '通知センター',
     settings: '設定',
   },
   common: {

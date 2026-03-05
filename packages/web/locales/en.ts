@@ -29,6 +29,7 @@ const en: Translations = {
     import: 'Import',
     roles: 'Roles',
     apiMonitor: 'API Monitor',
+    notifications: 'Notifications',
     settings: 'Settings',
   },
   page: {
@@ -59,6 +60,7 @@ const en: Translations = {
     import: 'Data Import',
     roles: 'Role Management',
     apiMonitor: 'API Usage Monitoring',
+    notifications: 'Notification Center',
     settings: 'Settings',
   },
   common: {

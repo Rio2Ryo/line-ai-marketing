@@ -3,6 +3,7 @@ import { Env } from "../types";
 import { verifySignature, sendReplyMessage, getProfile, getUserProfile } from "../lib/line";
 import { evaluateTriggers, executeScenario } from "../lib/scenario-engine";
 import { generateAiReply } from "../lib/ai-chat";
+import { createNotification } from "./notifications";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -151,6 +152,19 @@ async function handleMessageEvent(env: Env, event: any): Promise<void> {
     "INSERT INTO messages (id, user_id, direction, message_type, content, raw_json) VALUES (?, ?, ?, ?, ?, ?)"
   ).bind(generateId(), userId, "inbound", msgType, textContent, rawData).run();
 
+  // Create notification for inbound message
+  try {
+    const senderName = await env.DB.prepare("SELECT display_name, picture_url FROM users WHERE id = ?").bind(userId).first<{ display_name: string | null; picture_url: string | null }>();
+    await createNotification(env.DB, {
+      type: 'message_received',
+      title: 'メッセージ受信',
+      body: `${senderName?.display_name || '不明'}:${textContent.substring(0, 50)}`,
+      icon: senderName?.picture_url || undefined,
+      link: '/dashboard/chat',
+      source_user_id: userId,
+    });
+  } catch (e) { /* notification is non-critical */ }
+
   // テキストメッセージ処理
   if (msgType === "text") {
     // 1. 自動応答ルールマッチング（auto_response_rules）
@@ -175,6 +189,15 @@ async function handleMessageEvent(env: Env, event: any): Promise<void> {
 
       if (aiResult.shouldEscalate) {
         console.log("Escalation suggested for user:", userId, "confidence:", aiResult.confidence);
+        try {
+          await createNotification(env.DB, {
+            type: 'escalation',
+            title: 'エスカレーション発生',
+            body: `AIが対応困難と判断しました (信頼度: ${Math.round((aiResult.confidence || 0) * 100)}%)`,
+            link: '/dashboard/chat',
+            source_user_id: userId,
+          });
+        } catch (e) { /* non-critical */ }
       }
     }
 
@@ -237,6 +260,16 @@ async function handleFollowEvent(env: Env, event: any): Promise<void> {
   await env.DB.prepare(
     "INSERT INTO follow_events (id, source_id, user_id, line_user_id) VALUES (?, NULL, ?, ?)"
   ).bind(generateId(), finalUserId, lineUserId).run();
+
+  // Create notification
+  await createNotification(env.DB, {
+    type: 'new_follower',
+    title: '新規友だち追加',
+    body: `${displayName || '不明なユーザー'}が友だち追加しました`,
+    icon: pictureUrl || undefined,
+    link: `/dashboard/customers`,
+    source_user_id: finalUserId,
+  });
 
   // Trigger follow-based scenarios
   const sids = await evaluateTriggers(env, "follow", {});

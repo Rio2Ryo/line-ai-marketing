@@ -57,6 +57,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/roles', name: '権限管理' },
     { path: '/dashboard/import', name: 'データインポート' },
     { path: '/dashboard/api-monitor', name: 'APIモニター' },
+    { path: '/dashboard/notifications', name: '通知センター' },
     { path: '/liff', name: 'LIFF Home' },
     { path: '/liff/surveys', name: 'LIFF Surveys' },
     { path: '/liff/history', name: 'LIFF History' },
