@@ -5,6 +5,7 @@ import { removeToken } from "@/lib/auth";
 import { useTranslation, Locale } from '@/lib/i18n';
 import { useRole } from '@/lib/role';
 import { useAccount } from '@/lib/account';
+import { useTheme } from '@/lib/theme';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://line-ai-marketing-api.common-gifted-tokyo.workers.dev';
 
@@ -69,6 +70,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   const { t, locale, setLocale } = useTranslation();
   const { role } = useRole();
   const { accounts, currentAccountId, currentAccount, switchAccount } = useAccount();
+  const { isDark, setMode, mode } = useTheme();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
@@ -165,18 +167,18 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8">
+    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 md:px-8">
       <div className="flex items-center gap-3">
         {/* Hamburger menu - mobile only */}
         <button
           onClick={onMenuToggle}
-          className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <h2 className="text-lg md:text-xl font-semibold text-gray-900">{title}</h2>
+        <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
       </div>
       <div className="flex items-center gap-4">
         {/* Notification Bell */}
@@ -198,7 +200,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
 
           {/* Notification Panel */}
           {showPanel && (
-            <div className="absolute right-0 top-12 w-80 md:w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+            <div className="absolute right-0 top-12 w-80 md:w-96 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <h3 className="text-sm font-bold text-gray-900">
@@ -285,11 +287,28 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
           </select>
         )}
 
-        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+        {/* Dark mode toggle */}
+        <button
+          onClick={() => setMode(isDark ? 'light' : 'dark')}
+          className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 transition-colors"
+          title={isDark ? 'Light mode' : 'Dark mode'}
+        >
+          {isDark ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+        </button>
+
+        <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <button
             onClick={() => setLocale('ja')}
             className={`px-2 py-1 text-xs font-medium transition-colors ${
-              locale === 'ja' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+              locale === 'ja' ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900' : 'bg-white text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
             }`}
           >
             JA
@@ -297,7 +316,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
           <button
             onClick={() => setLocale('en')}
             className={`px-2 py-1 text-xs font-medium transition-colors ${
-              locale === 'en' ? 'bg-gray-800 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+              locale === 'en' ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-900' : 'bg-white text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
             }`}
           >
             EN
@@ -318,7 +337,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         </div>
-        <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
           {t('header.logout')}
         </button>
       </div>

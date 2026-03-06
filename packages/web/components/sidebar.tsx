@@ -354,15 +354,15 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col
+          fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col
           transform transition-transform duration-200 ease-in-out
           md:static md:translate-x-0 md:z-auto
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-line rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent)' }}>
               <svg
                 className="w-6 h-6 text-white"
                 viewBox="0 0 24 24"
@@ -372,14 +372,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </svg>
             </div>
             <div>
-              <h1 className="font-bold text-gray-900">LINE AI</h1>
-              <p className="text-xs text-gray-500">Marketing</p>
+              <h1 className="font-bold text-gray-900 dark:text-gray-100">LINE AI</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Marketing</p>
             </div>
           </div>
           {/* Mobile close button */}
           <button
             onClick={onClose}
-            className="md:hidden p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            className="md:hidden p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-800"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -400,11 +400,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 onClick={onClose}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-200 ${
                   isActive
-                    ? 'bg-line/10 text-line'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    ? 'text-white'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200'
                 }`}
+                style={isActive ? { backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' } : undefined}
               >
-                <span className={isActive ? 'text-line' : 'text-gray-400'}>
+                <span style={isActive ? { color: 'var(--accent)' } : undefined} className={isActive ? '' : 'text-gray-400 dark:text-gray-500'}>
                   {item.icon}
                 </span>
                 {t(item.nameKey)}
@@ -413,8 +414,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
-          <p className="text-xs text-gray-400 text-center">v0.1.0</p>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">v0.1.0</p>
         </div>
       </aside>
     </>

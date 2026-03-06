@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
 import { useTranslation, Locale } from '@/lib/i18n';
+import { useTheme, COLOR_THEMES, ThemeMode, ColorTheme } from '@/lib/theme';
 
 export default function SettingsPage() {
   const { t, locale, setLocale } = useTranslation();
+  const { mode, setMode, isDark, colorTheme, setColorTheme } = useTheme();
   const [aiAutoReply, setAiAutoReply] = useState(true);
   const [escalationNotify, setEscalationNotify] = useState(true);
   const [notifySlack, setNotifySlack] = useState(false);
@@ -99,10 +101,10 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">{t('settings.title')}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('settings.title')}</h1>
 
       {/* 言語設定セクション */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
           <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
@@ -141,6 +143,96 @@ export default function SettingsPage() {
             >
               {t('settings.english')}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* テーマ設定セクション */}
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6 flex items-center gap-2">
+          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          {locale === 'ja' ? 'テーマ設定' : 'Theme Settings'}
+        </h3>
+
+        <div className="space-y-6">
+          {/* Dark Mode */}
+          <div>
+            <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+              {locale === 'ja' ? 'ダークモード' : 'Dark Mode'}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              {locale === 'ja' ? '画面の表示モードを切り替えます' : 'Switch between light and dark display modes'}
+            </p>
+            <div className="flex items-center gap-2">
+              {(['light', 'dark', 'system'] as ThemeMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMode(m);
+                    updateSetting('theme_mode', m);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    mode === m
+                      ? 'border-gray-800 bg-gray-800 text-white dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900'
+                      : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  {m === 'light' && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  )}
+                  {m === 'dark' && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  )}
+                  {m === 'system' && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                  {m === 'light' ? (locale === 'ja' ? 'ライト' : 'Light') :
+                   m === 'dark' ? (locale === 'ja' ? 'ダーク' : 'Dark') :
+                   locale === 'ja' ? 'システム' : 'System'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Accent Color */}
+          <div>
+            <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+              {locale === 'ja' ? 'アクセントカラー' : 'Accent Color'}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              {locale === 'ja' ? 'サイドバーやボタンのテーマカラーを変更します' : 'Change the theme color for sidebar and buttons'}
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              {COLOR_THEMES.map((theme) => (
+                <button
+                  key={theme.name}
+                  onClick={() => {
+                    setColorTheme(theme);
+                    updateSetting('theme_color', theme.name);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
+                    colorTheme.accent === theme.accent
+                      ? 'border-2 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                  style={colorTheme.accent === theme.accent ? { borderColor: theme.accent } : undefined}
+                >
+                  <span
+                    className="w-5 h-5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: theme.accent }}
+                  />
+                  <span className="text-gray-700 dark:text-gray-300 font-medium">{theme.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

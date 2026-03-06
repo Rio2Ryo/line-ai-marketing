@@ -2,8 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --accent: #06C755;
+  --accent-dark: #05a847;
+  --accent-light: #4cd880;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+}
+
+/* Dark mode overrides for common card patterns */
+.dark .bg-white {
+  background-color: rgb(17 24 39); /* gray-900 */
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: rgb(55 65 81); /* gray-700 */
+}
+
+.dark .bg-gray-50 {
+  background-color: rgb(31 41 55); /* gray-800 */
+}
+
+.dark .text-gray-900 {
+  color: rgb(243 244 246); /* gray-100 */
+}
+
+.dark .text-gray-700 {
+  color: rgb(209 213 219); /* gray-300 */
+}
+
+.dark .text-gray-600 {
+  color: rgb(209 213 219); /* gray-300 */
+}
+
+.dark .text-gray-500 {
+  color: rgb(156 163 175); /* gray-400 */
+}
+
+.dark .text-gray-400 {
+  color: rgb(156 163 175); /* gray-400 */
+}
+
+.dark .shadow-sm {
+  --tw-shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: rgb(31 41 55);
+  border-color: rgb(55 65 81);
+  color: rgb(243 244 246);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgb(107 114 128);
 }
 
 @keyframes slide-in {
