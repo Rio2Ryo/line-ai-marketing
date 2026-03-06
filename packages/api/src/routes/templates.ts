@@ -10,6 +10,46 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
+async function callClaude(env: Env, systemPrompt: string, userMessage: string, maxTokens = 2000): Promise<string> {
+  const isFoundry = !!env.ANTHROPIC_RESOURCE;
+  const apiUrl = isFoundry
+    ? `https://${env.ANTHROPIC_RESOURCE}.services.ai.azure.com/anthropic/v1/messages`
+    : 'https://api.anthropic.com/v1/messages';
+  const authHeader = isFoundry
+    ? { 'Authorization': `Bearer ${env.ANTHROPIC_API_KEY}` }
+    : { 'x-api-key': env.ANTHROPIC_API_KEY };
+  const modelName = isFoundry ? 'claude-opus-4-6' : 'claude-haiku-4-5-20251001';
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeader,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: modelName,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Claude API error: ${response.status} ${err}`);
+  }
+  const data = (await response.json()) as any;
+  return data.content?.[0]?.text || '';
+}
+
+function parseJsonSafe(text: string): any {
+  let cleaned = text.trim();
+  const m = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m) cleaned = m[1].trim();
+  return JSON.parse(cleaned);
+}
+
 // GET / — List templates (with optional category filter)
 templateRoutes.get('/', async (c) => {
   try {
@@ -184,5 +224,137 @@ templateRoutes.post('/:id/use', async (c) => {
   } catch (err) {
     console.error('Use template error:', err);
     return c.json({ success: false, error: '使用回数の更新に失敗しました' }, 500);
+  }
+});
+
+// POST /ai-generate — AIでテンプレート文面を自動生成（業種・目的ベース）
+templateRoutes.post('/ai-generate', async (c) => {
+  try {
+    const body = await c.req.json<{
+      industry: string;
+      purpose: string;
+      tone?: string;
+      category?: string;
+      count?: number;
+    }>();
+
+    if (!body.industry) {
+      return c.json({ success: false, error: '業種は必須です' }, 400);
+    }
+    if (!body.purpose) {
+      return c.json({ success: false, error: '目的は必須です' }, 400);
+    }
+
+    const count = Math.min(Math.max(body.count || 3, 1), 5);
+    const tone = body.tone || 'casual';
+    const category = body.category || '汎用';
+
+    const toneLabel: Record<string, string> = {
+      casual: 'カジュアル（親しみやすい）',
+      formal: 'フォーマル（丁寧・ビジネス）',
+      friendly: 'フレンドリー（温かみのある）',
+      urgent: '緊急性のある（限定感・FOMO）',
+    };
+
+    const systemPrompt = `あなたはLINE公式アカウントのマーケティング専門コピーライターです。
+業種と目的に最適化されたLINEメッセージテンプレートを生成してください。
+
+ルール:
+- 各テンプレートは200文字以内
+- ${toneLabel[tone] || tone}トーンで書く
+- CTA（行動喚起）を含める
+- 変数プレースホルダーを活用する（例: {customer_name}, {shop_name}, {coupon_code}, {date}）
+- ${count}個のバリエーションを生成
+- 業種「${body.industry}」に特有の用語やシチュエーションを活用
+- 実践的ですぐに使える内容にする
+
+必ず以下のJSON配列で返してください。他のテキストは含めないでください。
+[
+  {
+    "name": "テンプレート名（簡潔に）",
+    "content": "メッセージ本文（変数プレースホルダー含む）"
+  }
+]`;
+
+    const userMessage = `業種: ${body.industry}\n目的: ${body.purpose}\nカテゴリ: ${category}`;
+
+    const result = await callClaude(c.env, systemPrompt, userMessage);
+    try {
+      const templates = parseJsonSafe(result) as Array<{ name: string; content: string }>;
+      return c.json({ success: true, data: { templates, category } });
+    } catch {
+      return c.json({ success: false, error: 'AI応答の解析に失敗しました' }, 500);
+    }
+  } catch (err) {
+    console.error('AI template generation error:', err);
+    return c.json({ success: false, error: 'テンプレート生成に失敗しました' }, 500);
+  }
+});
+
+// POST /:id/ab-variations — 既存テンプレートからABテストバリエーションを自動提案
+templateRoutes.post('/:id/ab-variations', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const template = await c.env.DB.prepare('SELECT * FROM message_templates WHERE id = ?').bind(id).first<{
+      name: string;
+      category: string;
+      content: string;
+    }>();
+
+    if (!template) {
+      return c.json({ success: false, error: 'テンプレートが見つかりません' }, 404);
+    }
+
+    const body = await c.req.json<{
+      count?: number;
+      focus?: string;
+    }>().catch(() => ({ count: 3, focus: '' }));
+
+    const count = Math.min(Math.max(body.count || 3, 2), 5);
+    const focus = body.focus || '訴求軸・CTA・表現方法を変えて比較';
+
+    const systemPrompt = `あなたはLINE A/Bテスト専門のマーケティングコンサルタントです。
+既存のメッセージテンプレートを元に、A/Bテスト用のバリエーションを提案してください。
+
+ルール:
+- 元のメッセージの核となるメッセージ性は維持する
+- 各バリエーションは明確に差別化する（訴求軸・表現・CTA・構成）
+- 各メッセージは200文字以内
+- ${count}個のバリエーションを生成（元のメッセージも含む）
+- A/Bテストとして有意な比較ができるよう設計
+- 各バリエーションに「何を変えたか」の説明を付ける
+- 改善フォーカス: ${focus}
+
+必ず以下のJSON配列で返してください。他のテキストは含めないでください。
+[
+  {
+    "name": "バリエーション名（A, B, C...）",
+    "content": "メッセージ本文",
+    "change_description": "元のメッセージから何を変えたかの説明"
+  }
+]`;
+
+    const userMessage = `テンプレート名: ${template.name}\nカテゴリ: ${template.category}\n元のメッセージ:\n${template.content}`;
+
+    const result = await callClaude(c.env, systemPrompt, userMessage);
+    try {
+      const variations = parseJsonSafe(result) as Array<{
+        name: string;
+        content: string;
+        change_description: string;
+      }>;
+      return c.json({
+        success: true,
+        data: {
+          original: { name: template.name, content: template.content },
+          variations,
+        },
+      });
+    } catch {
+      return c.json({ success: false, error: 'AI応答の解析に失敗しました' }, 500);
+    }
+  } catch (err) {
+    console.error('AB variation generation error:', err);
+    return c.json({ success: false, error: 'バリエーション生成に失敗しました' }, 500);
   }
 });
