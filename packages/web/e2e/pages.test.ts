@@ -61,6 +61,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/line-stats', name: 'LINE統計' },
     { path: '/dashboard/rate-limit', name: 'レート制限' },
     { path: '/dashboard/flex-editor', name: 'Flexエディター' },
+    { path: '/dashboard/webhook-stream', name: 'Webhookストリーム' },
     { path: '/liff', name: 'LIFF Home' },
     { path: '/liff/surveys', name: 'LIFF Surveys' },
     { path: '/liff/history', name: 'LIFF History' },

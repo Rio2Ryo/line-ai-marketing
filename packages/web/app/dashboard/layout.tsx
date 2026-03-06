@@ -39,6 +39,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/line-stats': 'page.lineStats',
   '/dashboard/rate-limit': 'page.rateLimit',
   '/dashboard/flex-editor': 'page.flexEditor',
+  '/dashboard/webhook-stream': 'page.webhookStream',
   '/dashboard/settings': 'page.settings',
 };
 

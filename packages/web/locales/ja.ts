@@ -31,6 +31,7 @@ const ja = {
     lineStats: 'LINE統計',
     rateLimit: 'レート制限',
     flexEditor: 'Flexエディター',
+    webhookStream: 'Webhookストリーム',
     settings: '設定',
   },
   page: {
@@ -65,6 +66,7 @@ const ja = {
     lineStats: 'LINE統計ダッシュボード',
     rateLimit: 'レート制限モニター',
     flexEditor: 'Flex Messageビジュアルエディター',
+    webhookStream: 'Webhookリアルタイムストリーム',
     settings: '設定',
   },
   common: {

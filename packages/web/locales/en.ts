@@ -33,6 +33,7 @@ const en: Translations = {
     lineStats: 'LINE Stats',
     rateLimit: 'Rate Limit',
     flexEditor: 'Flex Editor',
+    webhookStream: 'Webhook Stream',
     settings: 'Settings',
   },
   page: {
@@ -67,6 +68,7 @@ const en: Translations = {
     lineStats: 'LINE Stats Dashboard',
     rateLimit: 'Rate Limit Monitor',
     flexEditor: 'Flex Message Visual Editor',
+    webhookStream: 'Webhook Realtime Stream',
     settings: 'Settings',
   },
   common: {

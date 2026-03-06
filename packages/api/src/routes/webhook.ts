@@ -28,30 +28,70 @@ webhookRoutes.post("/", async (c) => {
   const events = payload.events || [];
 
   for (const event of events) {
+    const eventId = generateId();
+    const startMs = Date.now();
+    const lineUserId = event.source?.userId || null;
+    const msgType = event.type === 'message' ? (event.message?.type || null) : null;
+
+    // Log event as received
+    logWebhookEvent(c.env.DB, eventId, event.type, lineUserId, msgType, 'received', null, JSON.stringify(event));
+
     try {
+      // Update stage to processing
+      updateWebhookStage(c.env.DB, eventId, 'processing');
+
+      let summary = '';
       switch (event.type) {
         case "message":
           await handleMessageEvent(c.env, event);
+          summary = `${msgType}: ${event.message?.text?.substring(0, 50) || `[${msgType}]`}`;
           break;
         case "follow":
           await handleFollowEvent(c.env, event);
+          summary = 'New follower';
           break;
         case "unfollow":
           await handleUnfollowEvent(c.env, event);
+          summary = 'User unfollowed';
           break;
         case "postback":
           await handlePostbackEvent(c.env, event);
+          summary = `Postback: ${event.postback?.data?.substring(0, 50) || ''}`;
           break;
         default:
+          summary = `Unhandled: ${event.type}`;
           console.log("Unhandled event type:", event.type);
       }
+
+      const elapsed = Date.now() - startMs;
+      completeWebhookEvent(c.env.DB, eventId, 'completed', summary, elapsed);
     } catch (error) {
+      const elapsed = Date.now() - startMs;
+      const errMsg = error instanceof Error ? error.message : String(error);
+      completeWebhookEvent(c.env.DB, eventId, 'error', null, elapsed, errMsg);
       console.error("Error handling event:", event.type, error);
     }
   }
 
   return c.json({ success: true });
 });
+
+// Fire-and-forget webhook event logging helpers
+function logWebhookEvent(db: D1Database, id: string, eventType: string, sourceUserId: string | null, messageType: string | null, stage: string, summary: string | null, rawJson: string) {
+  db.prepare(
+    'INSERT INTO webhook_events (id, event_type, source_user_id, message_type, summary, stage, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).bind(id, eventType, sourceUserId, messageType, summary, stage, rawJson).run().catch(() => {});
+}
+
+function updateWebhookStage(db: D1Database, id: string, stage: string) {
+  db.prepare('UPDATE webhook_events SET stage = ? WHERE id = ?').bind(stage, id).run().catch(() => {});
+}
+
+function completeWebhookEvent(db: D1Database, id: string, stage: string, summary: string | null, processingMs: number, errorMessage?: string) {
+  db.prepare(
+    'UPDATE webhook_events SET stage = ?, summary = COALESCE(?, summary), processing_ms = ?, error_message = ? WHERE id = ?'
+  ).bind(stage, summary, processingMs, errorMessage || null, id).run().catch(() => {});
+}
 
 async function findOrCreateUser(env: Env, lineUserId: string): Promise<string> {
   const existing = await env.DB.prepare("SELECT id FROM users WHERE line_user_id = ?").bind(lineUserId).first();
