@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { sendWithRateLimit } from '../lib/rate-limiter';
 
 type AuthVars = { userId: string };
 export const deliveryQueueRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -217,22 +218,15 @@ deliveryQueueRoutes.post('/:id/start', async (c) => {
         if (!check || check.status === 'cancelled' || check.status === 'paused') break;
 
         try {
-          // Push message via LINE API
-          const res = await fetch('https://api.line.me/v2/bot/message/push', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: 'Bearer ' + c.env.LINE_CHANNEL_ACCESS_TOKEN,
-            },
-            body: JSON.stringify({
-              to: item.line_user_id,
-              messages: [{ type: queue.message_type || 'text', text: queue.message_content }],
-            }),
-          });
+          // Push message via LINE API with rate limit handling
+          const result = await sendWithRateLimit(
+            c.env,
+            item.line_user_id,
+            [{ type: queue.message_type || 'text', text: queue.message_content }]
+          );
 
-          if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`LINE API ${res.status}: ${errText}`);
+          if (!result.success) {
+            throw new Error(result.error || `LINE API ${result.statusCode}`);
           }
 
           // Mark item as sent

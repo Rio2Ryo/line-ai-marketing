@@ -75,12 +75,32 @@ export async function getProfile(accessToken: string): Promise<LineProfile> {
 }
 
 export async function sendPushMessage(to: string, messages: unknown[], accessToken: string): Promise<void> {
-  const res = await fetch('https://api.line.me/v2/bot/message/push', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
-    body: JSON.stringify({ to, messages }),
-  });
-  if (!res.ok) {
+  const maxRetries = 3;
+  const baseBackoff = 1000;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken },
+      body: JSON.stringify({ to, messages }),
+    });
+
+    if (res.ok) return;
+
+    // Rate limited (429) — backoff and retry
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfter = res.headers.get('Retry-After');
+      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseBackoff * Math.pow(2, attempt);
+      await new Promise(r => setTimeout(r, Math.min(waitMs, 30000)));
+      continue;
+    }
+
+    // Server errors (5xx) — retry with backoff
+    if (res.status >= 500 && attempt < maxRetries) {
+      await new Promise(r => setTimeout(r, baseBackoff * Math.pow(2, attempt)));
+      continue;
+    }
+
     const err = await res.text();
     throw new Error('Push failed: ' + res.status + ' ' + err);
   }

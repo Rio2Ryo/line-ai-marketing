@@ -29,6 +29,7 @@ const ja = {
     apiMonitor: 'APIモニター',
     notifications: '通知',
     lineStats: 'LINE統計',
+    rateLimit: 'レート制限',
     settings: '設定',
   },
   page: {
@@ -61,6 +62,7 @@ const ja = {
     apiMonitor: 'API利用量モニタリング',
     notifications: '通知センター',
     lineStats: 'LINE統計ダッシュボード',
+    rateLimit: 'レート制限モニター',
     settings: '設定',
   },
   common: {

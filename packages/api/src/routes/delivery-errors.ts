@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { sendWithRateLimit } from '../lib/rate-limiter';
 
 type AuthVars = { userId: string };
 export const deliveryErrorRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -164,18 +165,14 @@ deliveryErrorRoutes.post('/:id/retry', async (c) => {
     }
 
     try {
-      const res = await fetch('https://api.line.me/v2/bot/message/push', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + c.env.LINE_CHANNEL_ACCESS_TOKEN,
-        },
-        body: JSON.stringify({ to: user.line_user_id, messages: [{ type: 'text', text: content }] }),
-      });
+      const result = await sendWithRateLimit(
+        c.env,
+        user.line_user_id,
+        [{ type: 'text', text: content }]
+      );
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error('Push failed: ' + res.status + ' ' + err);
+      if (!result.success) {
+        throw new Error(result.error || `LINE API ${result.statusCode}`);
       }
 
       await c.env.DB.prepare(

@@ -41,6 +41,7 @@ import { apiMonitorRoutes } from "./routes/api-monitor";
 import { liffRoutes } from "./routes/liff";
 import { webhookTestRoutes } from "./routes/webhook-test";
 import { lineStatsRoutes } from "./routes/line-stats";
+import { rateLimitRoutes } from "./routes/rate-limit";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -105,6 +106,7 @@ app.route("/api/api-monitor", apiMonitorRoutes);
 app.route("/api/liff", liffRoutes);
 app.route("/api/webhook-test", webhookTestRoutes);
 app.route("/api/line-stats", lineStatsRoutes);
+app.route("/api/rate-limit", rateLimitRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

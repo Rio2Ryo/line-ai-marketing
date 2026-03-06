@@ -31,6 +31,7 @@ const en: Translations = {
     apiMonitor: 'API Monitor',
     notifications: 'Notifications',
     lineStats: 'LINE Stats',
+    rateLimit: 'Rate Limit',
     settings: 'Settings',
   },
   page: {
@@ -63,6 +64,7 @@ const en: Translations = {
     apiMonitor: 'API Usage Monitoring',
     notifications: 'Notification Center',
     lineStats: 'LINE Stats Dashboard',
+    rateLimit: 'Rate Limit Monitor',
     settings: 'Settings',
   },
   common: {

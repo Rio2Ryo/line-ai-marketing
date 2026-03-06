@@ -37,6 +37,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/api-monitor': 'page.apiMonitor',
   '/dashboard/notifications': 'page.notifications',
   '/dashboard/line-stats': 'page.lineStats',
+  '/dashboard/rate-limit': 'page.rateLimit',
   '/dashboard/settings': 'page.settings',
 };
 

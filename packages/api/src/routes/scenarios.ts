@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { sendWithRateLimit } from '../lib/rate-limiter';
 
 type AuthVars = { userId: string };
 export const scenarioRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -147,11 +148,8 @@ scenarioRoutes.post('/:id/execute', async (c) => {
     const user = await c.env.DB.prepare('SELECT line_user_id FROM users WHERE id = ?').bind(uid).first<{ line_user_id: string }>();
     if (!user) { failed++; continue; }
     try {
-      await fetch('https://api.line.me/v2/bot/message/push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + c.env.LINE_CHANNEL_ACCESS_TOKEN },
-        body: JSON.stringify({ to: user.line_user_id, messages: [{ type: 'text', text: firstStep.message_content }] }),
-      });
+      const pushResult = await sendWithRateLimit(c.env, user.line_user_id, [{ type: 'text', text: firstStep.message_content }]);
+      if (!pushResult.success) throw new Error(pushResult.error || `LINE API ${pushResult.statusCode}`);
       const msgId = crypto.randomUUID();
       await c.env.DB.prepare('INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)').bind(msgId, uid, 'outbound', 'text', firstStep.message_content).run();
       await c.env.DB.prepare("INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, sent_at) VALUES (?, ?, ?, ?, 'sent', datetime('now'))").bind(crypto.randomUUID(), scenarioId, firstStep.id, uid).run();
