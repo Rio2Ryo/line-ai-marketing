@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { evaluateScoreActions } from './score-actions';
 
 type AuthVars = { userId: string };
 export const engagementScoreRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -258,11 +259,28 @@ engagementScoreRoutes.post('/calculate', async (c) => {
     }
 
     if (users.length === 0) {
-      return c.json({ success: true, data: { calculated: 0 } });
+      return c.json({ success: true, data: { calculated: 0, actions_triggered: 0, actions_executed: 0 } });
+    }
+
+    // Capture old scores/ranks for change detection
+    const userIds = users.map((u: any) => u.id);
+    const oldScoresMap = new Map<string, { rank: string; score: number; name?: string }>();
+    for (let i = 0; i < userIds.length; i += 50) {
+      const batch = userIds.slice(i, i + 50);
+      const ph = batch.map(() => '?').join(',');
+      const oldRows = await c.env.DB.prepare(
+        `SELECT es.user_id, es.rank, es.total_score, u.display_name
+         FROM engagement_scores es LEFT JOIN users u ON es.user_id = u.id
+         WHERE es.user_id IN (${ph})`
+      ).bind(...batch).all();
+      for (const r of (oldRows.results || []) as any[]) {
+        oldScoresMap.set(r.user_id, { rank: r.rank, score: r.total_score, name: r.display_name });
+      }
     }
 
     const now = new Date();
     let calculated = 0;
+    const scoreChanges: Array<{ userId: string; userName?: string; prevRank: string; newRank: string; prevScore: number; newScore: number }> = [];
 
     for (const user of users) {
       const userId = (user as any).id;
@@ -336,10 +354,43 @@ engagementScoreRoutes.post('/calculate', async (c) => {
         ).bind(crypto.randomUUID(), userId, totalScore, rank, msgRaw, engRaw, cvRaw, retRaw).run();
       }
 
+      // Detect rank/score changes
+      const old = oldScoresMap.get(userId);
+      const prevRank = old?.rank || 'D';
+      const prevScore = old?.score || 0;
+      if (prevRank !== rank || prevScore !== totalScore) {
+        scoreChanges.push({
+          userId,
+          userName: old?.name || undefined,
+          prevRank,
+          newRank: rank,
+          prevScore,
+          newScore: totalScore,
+        });
+      }
+
       calculated++;
     }
 
-    return c.json({ success: true, data: { calculated } });
+    // Evaluate auto-action rules for rank/score changes
+    let actionResult = { triggered: 0, executed: 0 };
+    if (scoreChanges.length > 0) {
+      try {
+        actionResult = await evaluateScoreActions(c.env.DB, c.env, scoreChanges);
+      } catch (err) {
+        console.error('Score auto-action evaluation error:', err);
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        calculated,
+        score_changes: scoreChanges.length,
+        actions_triggered: actionResult.triggered,
+        actions_executed: actionResult.executed,
+      },
+    });
   } catch (err) {
     console.error('Calculate scores error:', err);
     return c.json({ success: false, error: 'スコア計算に失敗しました' }, 500);

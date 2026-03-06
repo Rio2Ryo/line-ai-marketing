@@ -48,6 +48,7 @@ import { securityRoutes } from "./routes/security";
 import { cronTaskRoutes } from "./routes/cron-tasks";
 import { richmenuRuleRoutes } from "./routes/richmenu-rules";
 import { chatAnalyticsRoutes } from "./routes/chat-analytics";
+import { scoreActionRoutes } from "./routes/score-actions";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -145,6 +146,7 @@ app.route("/api/security", securityRoutes);
 app.route("/api/cron-tasks", cronTaskRoutes);
 app.route("/api/richmenu-rules", richmenuRuleRoutes);
 app.route("/api/chat-analytics", chatAnalyticsRoutes);
+app.route("/api/score-actions", scoreActionRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {
