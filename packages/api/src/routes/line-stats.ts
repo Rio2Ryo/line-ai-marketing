@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { cached } from '../lib/cache';
 
 type AuthVars = { userId: string };
 export const lineStatsRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -32,6 +33,7 @@ function daysAgo(n: number): Date {
 
 lineStatsRoutes.get('/overview', async (c) => {
   try {
+    const data = await cached(c.env.DB, 'line-stats:overview', 300, async () => {
     const token = c.env.LINE_CHANNEL_ACCESS_TOKEN;
 
     // Internal stats from D1
@@ -78,9 +80,7 @@ lineStatsRoutes.get('/overview', async (c) => {
     const totalDeliveries = (deliveryMap['sent'] || 0) + (deliveryMap['failed'] || 0);
     const deliveryRate = totalDeliveries > 0 ? Math.round(((deliveryMap['sent'] || 0) / totalDeliveries) * 1000) / 10 : 0;
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         // Internal
         total_friends: totalFriends?.c || 0,
         new_friends_this_month: newThisMonth?.c || 0,
@@ -95,8 +95,9 @@ lineStatsRoutes.get('/overview', async (c) => {
         // LINE API
         line_followers: lineFollowers,
         line_target_reach: lineTargetReach,
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('LINE stats overview error:', err);
     return c.json({ success: false, error: 'Failed to fetch overview stats' }, 500);
@@ -108,6 +109,7 @@ lineStatsRoutes.get('/overview', async (c) => {
 lineStatsRoutes.get('/followers', async (c) => {
   try {
     const days = Math.min(Number(c.req.query('days') || '30'), 90);
+    const data = await cached(c.env.DB, `line-stats:followers:${days}`, 300, async () => {
     const token = c.env.LINE_CHANNEL_ACCESS_TOKEN;
 
     // Try LINE API insight/followers for each day
@@ -161,13 +163,12 @@ lineStatsRoutes.get('/followers', async (c) => {
       internalCumulative.push({ date: r.date, total: cumulative, new_count: r.count });
     }
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         line_api: lineData,
         internal: internalCumulative,
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('Followers trend error:', err);
     return c.json({ success: false, error: 'Failed to fetch follower trend' }, 500);
@@ -179,7 +180,7 @@ lineStatsRoutes.get('/followers', async (c) => {
 lineStatsRoutes.get('/messages', async (c) => {
   try {
     const days = Math.min(Number(c.req.query('days') || '30'), 90);
-
+    const data = await cached(c.env.DB, `line-stats:messages:${days}`, 300, async () => {
     // LINE API: message delivery stats (past days)
     const token = c.env.LINE_CHANNEL_ACCESS_TOKEN;
     const lineMessageStats: { date: string; status: string; success?: number; api_broadcast?: number; api_push?: number; api_multicast?: number }[] = [];
@@ -262,14 +263,13 @@ lineStatsRoutes.get('/messages', async (c) => {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, counts]) => ({ date, ...counts }));
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         line_api: lineMessageStats,
         internal_messages: internalSeries,
         delivery_logs: deliverySeries,
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('Message stats error:', err);
     return c.json({ success: false, error: 'Failed to fetch message stats' }, 500);
@@ -281,6 +281,7 @@ lineStatsRoutes.get('/messages', async (c) => {
 lineStatsRoutes.get('/engagement', async (c) => {
   try {
     const days = Math.min(Number(c.req.query('days') || '30'), 90);
+    const data = await cached(c.env.DB, `line-stats:engagement:${days}`, 300, async () => {
 
     // Response rate: users who sent inbound after receiving outbound
     const responders = await c.env.DB.prepare(
@@ -360,9 +361,7 @@ lineStatsRoutes.get('/engagement', async (c) => {
       `SELECT rank, COUNT(*) as count FROM engagement_scores GROUP BY rank ORDER BY rank`
     ).all();
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         response_rate: responseRate,
         responders: responders?.c || 0,
         total_recipients: totalRecipients?.c || 0,
@@ -371,8 +370,9 @@ lineStatsRoutes.get('/engagement', async (c) => {
         hourly: hourlySeries,
         weekly: weeklySeries,
         score_distribution: scoreDist.results || [],
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('Engagement stats error:', err);
     return c.json({ success: false, error: 'Failed to fetch engagement stats' }, 500);

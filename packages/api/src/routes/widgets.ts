@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { cached } from '../lib/cache';
 
 type AuthVars = { userId: string };
 export const widgetRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -111,84 +112,68 @@ widgetRoutes.post('/reset', async (c) => {
 // GET /data — 全ウィジェットデータ一括取得
 widgetRoutes.get('/data', async (c) => {
   try {
-    const [
-      totalCustomers,
-      newCustomers,
-      messagesToday,
-      deliveryTotal,
-      deliverySent,
-      activeScenarios,
-      unreadChats,
-      conversionGoals,
-      conversionsCount,
-      avgEngagement,
-      dailyMessages,
-      deliveryByStatus,
-      recentMessages,
-      topTags,
-    ] = await Promise.all([
-      // total_customers
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM users WHERE status = 'active'").first<{ c: number }>(),
-      // new_customers (this month)
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM users WHERE created_at >= datetime('now','start of month')").first<{ c: number }>(),
-      // messages_today
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM messages WHERE sent_at >= date('now')").first<{ c: number }>(),
-      // delivery_rate (total)
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM delivery_logs").first<{ c: number }>(),
-      // delivery_rate (sent)
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM delivery_logs WHERE status = 'sent'").first<{ c: number }>(),
-      // active_scenarios
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM scenarios WHERE is_active = 1").first<{ c: number }>(),
-      // unread_chats: count conversations with unread messages
-      c.env.DB.prepare(`
-        SELECT COUNT(DISTINCT m.user_id) as c FROM messages m
-        LEFT JOIN chat_read_status crs ON crs.user_id = m.user_id
-        WHERE m.direction = 'inbound'
-        AND m.sent_at > COALESCE(crs.last_read_at, '1970-01-01')
-      `).first<{ c: number }>(),
-      // conversion_goals count
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM conversion_goals WHERE is_active = 1").first<{ c: number }>(),
-      // conversions count (this month)
-      c.env.DB.prepare("SELECT COUNT(*) as c FROM conversions WHERE converted_at >= datetime('now','start of month')").first<{ c: number }>(),
-      // avg_engagement
-      c.env.DB.prepare("SELECT AVG(total_score) as avg, COUNT(*) as c FROM engagement_scores").first<{ avg: number | null; c: number }>(),
-      // daily_messages (last 7 days)
-      c.env.DB.prepare(`
-        SELECT date(sent_at) as date,
-          SUM(CASE WHEN direction='inbound' THEN 1 ELSE 0 END) as inbound,
-          SUM(CASE WHEN direction='outbound' THEN 1 ELSE 0 END) as outbound
-        FROM messages WHERE sent_at >= date('now','-7 days')
-        GROUP BY date(sent_at) ORDER BY date ASC
-      `).all(),
-      // delivery_status
-      c.env.DB.prepare("SELECT status, COUNT(*) as count FROM delivery_logs GROUP BY status").all(),
-      // recent_activity (last 10 messages)
-      c.env.DB.prepare(`
-        SELECT m.id, m.direction, m.content, m.sent_at, u.display_name
-        FROM messages m JOIN users u ON m.user_id = u.id
-        ORDER BY m.sent_at DESC LIMIT 10
-      `).all(),
-      // top_tags
-      c.env.DB.prepare(`
-        SELECT t.name, t.color, COUNT(ut.user_id) as user_count
-        FROM tags t LEFT JOIN user_tags ut ON t.id = ut.tag_id
-        GROUP BY t.id ORDER BY user_count DESC LIMIT 10
-      `).all(),
-    ]);
+    const data = await cached(c.env.DB, 'widgets:data', 30, async () => {
+      const [
+        totalCustomers,
+        newCustomers,
+        messagesToday,
+        deliveryTotal,
+        deliverySent,
+        activeScenarios,
+        unreadChats,
+        conversionGoals,
+        conversionsCount,
+        avgEngagement,
+        dailyMessages,
+        deliveryByStatus,
+        recentMessages,
+        topTags,
+      ] = await Promise.all([
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM users WHERE status = 'active'").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM users WHERE created_at >= datetime('now','start of month')").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM messages WHERE sent_at >= date('now')").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM delivery_logs").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM delivery_logs WHERE status = 'sent'").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM scenarios WHERE is_active = 1").first<{ c: number }>(),
+        c.env.DB.prepare(`
+          SELECT COUNT(DISTINCT m.user_id) as c FROM messages m
+          LEFT JOIN chat_read_status crs ON crs.user_id = m.user_id
+          WHERE m.direction = 'inbound'
+          AND m.sent_at > COALESCE(crs.last_read_at, '1970-01-01')
+        `).first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM conversion_goals WHERE is_active = 1").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT COUNT(*) as c FROM conversions WHERE converted_at >= datetime('now','start of month')").first<{ c: number }>(),
+        c.env.DB.prepare("SELECT AVG(total_score) as avg, COUNT(*) as c FROM engagement_scores").first<{ avg: number | null; c: number }>(),
+        c.env.DB.prepare(`
+          SELECT date(sent_at) as date,
+            SUM(CASE WHEN direction='inbound' THEN 1 ELSE 0 END) as inbound,
+            SUM(CASE WHEN direction='outbound' THEN 1 ELSE 0 END) as outbound
+          FROM messages WHERE sent_at >= date('now','-7 days')
+          GROUP BY date(sent_at) ORDER BY date ASC
+        `).all(),
+        c.env.DB.prepare("SELECT status, COUNT(*) as count FROM delivery_logs GROUP BY status").all(),
+        c.env.DB.prepare(`
+          SELECT m.id, m.direction, m.content, m.sent_at, u.display_name
+          FROM messages m JOIN users u ON m.user_id = u.id
+          ORDER BY m.sent_at DESC LIMIT 10
+        `).all(),
+        c.env.DB.prepare(`
+          SELECT t.name, t.color, COUNT(ut.user_id) as user_count
+          FROM tags t LEFT JOIN user_tags ut ON t.id = ut.tag_id
+          GROUP BY t.id ORDER BY user_count DESC LIMIT 10
+        `).all(),
+      ]);
 
-    const deliveryTotalCount = deliveryTotal?.c || 0;
-    const deliverySentCount = deliverySent?.c || 0;
-    const deliveryRate = deliveryTotalCount > 0 ? Math.round((deliverySentCount / deliveryTotalCount) * 100) : 0;
+      const deliveryTotalCount = deliveryTotal?.c || 0;
+      const deliverySentCount = deliverySent?.c || 0;
+      const deliveryRate = deliveryTotalCount > 0 ? Math.round((deliverySentCount / deliveryTotalCount) * 100) : 0;
 
-    // Build delivery status summary
-    const deliveryStatusMap: Record<string, number> = {};
-    for (const row of (deliveryByStatus.results || []) as any[]) {
-      deliveryStatusMap[row.status] = row.count;
-    }
+      const deliveryStatusMap: Record<string, number> = {};
+      for (const row of (deliveryByStatus.results || []) as any[]) {
+        deliveryStatusMap[row.status] = row.count;
+      }
 
-    return c.json({
-      success: true,
-      data: {
+      return {
         total_customers: totalCustomers?.c || 0,
         new_customers: newCustomers?.c || 0,
         messages_today: messagesToday?.c || 0,
@@ -209,8 +194,10 @@ widgetRoutes.get('/data', async (c) => {
         },
         recent_activity: recentMessages.results || [],
         top_tags: topTags.results || [],
-      },
+      };
     });
+
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('Widget data error:', err);
     return c.json({ success: false, error: 'ウィジェットデータの取得に失敗しました' }, 500);

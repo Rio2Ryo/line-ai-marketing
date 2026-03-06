@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { cached } from '../lib/cache';
 
 type AuthVars = { userId: string };
 export const analyticsRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -9,6 +10,7 @@ analyticsRoutes.use('*', authMiddleware);
 // GET /delivery-effectiveness — 配信効果分析
 analyticsRoutes.get('/delivery-effectiveness', async (c) => {
   try {
+    const data = await cached(c.env.DB, 'analytics:delivery-effectiveness', 300, async () => {
     // Weekly sent/failed rates over last 30 days
     const weekly = await c.env.DB.prepare(`
       SELECT
@@ -45,13 +47,12 @@ analyticsRoutes.get('/delivery-effectiveness', async (c) => {
       ORDER BY sent DESC
     `).all();
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         weekly: weekly.results || [],
         by_scenario: byScenario.results || [],
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('delivery-effectiveness error:', err);
     return c.json({ success: false, error: 'Failed to fetch delivery effectiveness' }, 500);
@@ -61,6 +62,7 @@ analyticsRoutes.get('/delivery-effectiveness', async (c) => {
 // GET /user-activity — ユーザーエンゲージメント
 analyticsRoutes.get('/user-activity', async (c) => {
   try {
+    const data = await cached(c.env.DB, 'analytics:user-activity', 300, async () => {
     // Active users: messaged in last 7 days
     const active = await c.env.DB.prepare(`
       SELECT COUNT(DISTINCT user_id) as c FROM messages
@@ -103,16 +105,15 @@ analyticsRoutes.get('/user-activity', async (c) => {
       ORDER BY date ASC
     `).all();
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         active: active?.c || 0,
         at_risk: atRisk?.c || 0,
         dormant: dormant?.c || 0,
         total: total?.c || 0,
         activity_trend: trend.results || [],
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('user-activity error:', err);
     return c.json({ success: false, error: 'Failed to fetch user activity' }, 500);
@@ -122,6 +123,7 @@ analyticsRoutes.get('/user-activity', async (c) => {
 // GET /ai-performance — AIパフォーマンス
 analyticsRoutes.get('/ai-performance', async (c) => {
   try {
+    const data = await cached(c.env.DB, 'analytics:ai-performance', 300, async () => {
     // Average confidence
     const avgConf = await c.env.DB.prepare(`
       SELECT AVG(confidence) as avg FROM ai_chat_logs
@@ -178,17 +180,16 @@ analyticsRoutes.get('/ai-performance', async (c) => {
       ? Math.round(((escalated?.c || 0) / total) * 1000) / 10
       : 0;
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         avg_confidence: Math.round((avgConf?.avg || 0) * 100) / 100,
         escalation_rate: escalationRate,
         avg_response_ms: Math.round(avgTime?.avg || 0),
         total_chats: total,
         top_knowledge: topKnowledge.results || [],
         daily: daily.results || [],
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('ai-performance error:', err);
     return c.json({ success: false, error: 'Failed to fetch AI performance' }, 500);
@@ -198,6 +199,7 @@ analyticsRoutes.get('/ai-performance', async (c) => {
 // GET /churn-risk — 離脱リスクスコアリング
 analyticsRoutes.get('/churn-risk', async (c) => {
   try {
+    const data = await cached(c.env.DB, 'analytics:churn-risk', 300, async () => {
     // Calculate churn risk per user:
     // - days_since_last: days since last inbound message
     // - msg_count_30d: message count in last 30 days
@@ -279,17 +281,16 @@ analyticsRoutes.get('/churn-risk', async (c) => {
     const mediumRisk = scored.filter((u) => u.risk_score >= 40 && u.risk_score < 70).length;
     const lowRisk = scored.filter((u) => u.risk_score < 40).length;
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         users: top20,
         summary: {
           high_risk: highRisk,
           medium_risk: mediumRisk,
           low_risk: lowRisk,
         },
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('churn-risk error:', err);
     return c.json({ success: false, error: 'Failed to fetch churn risk' }, 500);

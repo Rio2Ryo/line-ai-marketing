@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { cached } from '../lib/cache';
 
 type AuthVars = { userId: string };
 export const reportRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -28,6 +29,7 @@ reportRoutes.get('/performance', async (c) => {
     const from = c.req.query('from') || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
     const to = c.req.query('to') || new Date().toISOString().slice(0, 10);
 
+    const data = await cached(c.env.DB, `reports:performance:${from}:${to}`, 300, async () => {
     // Calculate previous period (same length, immediately before)
     const fromDate = new Date(from + 'T00:00:00Z');
     const toDate = new Date(to + 'T23:59:59Z');
@@ -121,9 +123,7 @@ reportRoutes.get('/performance', async (c) => {
     const curRate = curTotal > 0 ? Math.round((curSent / curTotal) * 1000) / 10 : 0;
     const prevRate = prevTotal > 0 ? Math.round((prevSent / prevTotal) * 1000) / 10 : 0;
 
-    return c.json({
-      success: true,
-      data: {
+    return {
         period: { from, to, days: periodDays },
         previous_period: { from: prevFrom, to: prevTo },
         summary: {
@@ -148,8 +148,9 @@ reportRoutes.get('/performance', async (c) => {
         daily: daily.results || [],
         by_scenario: byScenario.results || [],
         message_activity: messageActivity.results || [],
-      },
+      };
     });
+    return c.json({ success: true, data });
   } catch (err) {
     console.error('report performance error:', err);
     return c.json({ success: false, error: 'Failed to generate report' }, 500);
