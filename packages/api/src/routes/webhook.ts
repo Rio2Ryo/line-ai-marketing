@@ -4,6 +4,7 @@ import { verifySignature, sendReplyMessage, getProfile, getUserProfile } from ".
 import { evaluateTriggers, executeScenario } from "../lib/scenario-engine";
 import { generateAiReply } from "../lib/ai-chat";
 import { createNotification } from "./notifications";
+import { logSecurityEvent, checkIpRules } from "../lib/security";
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -14,15 +15,53 @@ export const webhookRoutes = new Hono<{ Bindings: Env }>();
 webhookRoutes.post("/", async (c) => {
   const body = await c.req.text();
   const signature = c.req.header("x-line-signature");
+  const sourceIp = c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const userAgent = c.req.header("user-agent") || null;
+
+  // IP rule check
+  const ipCheck = await checkIpRules(c.env.DB, sourceIp, 'webhook');
+  if (!ipCheck.allowed) {
+    logSecurityEvent(c.env.DB, 'ip_blocked', sourceIp, '/webhook', 'warning', {
+      matched_rule: ipCheck.matchedRule?.ip_pattern,
+    }, userAgent);
+    return c.json({ success: false, error: "Forbidden" }, 403);
+  }
 
   if (!signature) {
+    logSecurityEvent(c.env.DB, 'webhook_missing_signature', sourceIp, '/webhook', 'warning', {
+      content_length: body.length,
+    }, userAgent);
     return c.json({ success: false, error: "Missing signature" }, 400);
   }
 
-  const isValid = await verifySignature(body, signature, c.env.LINE_CHANNEL_SECRET);
+  // Try env secret first, then all active account secrets
+  let isValid = await verifySignature(body, signature, c.env.LINE_CHANNEL_SECRET);
+
   if (!isValid) {
+    // Try multi-tenant account secrets
+    const accounts = await c.env.DB.prepare(
+      'SELECT channel_secret FROM line_accounts WHERE is_active = 1 AND channel_secret IS NOT NULL'
+    ).all();
+    for (const acc of (accounts.results || []) as { channel_secret: string }[]) {
+      if (acc.channel_secret && await verifySignature(body, signature, acc.channel_secret)) {
+        isValid = true;
+        break;
+      }
+    }
+  }
+
+  if (!isValid) {
+    logSecurityEvent(c.env.DB, 'webhook_signature_fail', sourceIp, '/webhook', 'critical', {
+      signature_prefix: signature.substring(0, 10) + '...',
+      body_length: body.length,
+    }, userAgent);
     return c.json({ success: false, error: "Invalid signature" }, 403);
   }
+
+  // Log successful verification
+  logSecurityEvent(c.env.DB, 'webhook_signature_ok', sourceIp, '/webhook', 'info', {
+    events_count: JSON.parse(body).events?.length || 0,
+  }, userAgent);
 
   const payload = JSON.parse(body);
   const events = payload.events || [];

@@ -42,6 +42,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/flex-editor': 'page.flexEditor',
   '/dashboard/webhook-stream': 'page.webhookStream',
   '/dashboard/accounts': 'page.accounts',
+  '/dashboard/security': 'page.security',
   '/dashboard/settings': 'page.settings',
 };
 

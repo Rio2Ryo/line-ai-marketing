@@ -33,6 +33,7 @@ const ja = {
     flexEditor: 'Flexエディター',
     webhookStream: 'Webhookストリーム',
     accounts: 'アカウント管理',
+    security: 'セキュリティ',
     settings: '設定',
   },
   page: {
@@ -69,6 +70,7 @@ const ja = {
     flexEditor: 'Flex Messageビジュアルエディター',
     webhookStream: 'Webhookリアルタイムストリーム',
     accounts: 'LINEアカウント管理',
+    security: 'セキュリティ監査',
     settings: '設定',
   },
   common: {

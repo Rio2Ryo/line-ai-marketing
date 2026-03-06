@@ -44,6 +44,7 @@ import { lineStatsRoutes } from "./routes/line-stats";
 import { rateLimitRoutes } from "./routes/rate-limit";
 import { webhookStreamRoutes } from "./routes/webhook-stream";
 import { accountRoutes } from "./routes/accounts";
+import { securityRoutes } from "./routes/security";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -111,6 +112,7 @@ app.route("/api/line-stats", lineStatsRoutes);
 app.route("/api/rate-limit", rateLimitRoutes);
 app.route("/api/webhook-stream", webhookStreamRoutes);
 app.route("/api/accounts", accountRoutes);
+app.route("/api/security", securityRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

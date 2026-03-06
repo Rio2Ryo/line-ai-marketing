@@ -35,6 +35,7 @@ const en: Translations = {
     flexEditor: 'Flex Editor',
     webhookStream: 'Webhook Stream',
     accounts: 'Accounts',
+    security: 'Security',
     settings: 'Settings',
   },
   page: {
@@ -71,6 +72,7 @@ const en: Translations = {
     flexEditor: 'Flex Message Visual Editor',
     webhookStream: 'Webhook Realtime Stream',
     accounts: 'LINE Account Management',
+    security: 'Security Audit',
     settings: 'Settings',
   },
   common: {

@@ -63,6 +63,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/flex-editor', name: 'Flexエディター' },
     { path: '/dashboard/webhook-stream', name: 'Webhookストリーム' },
     { path: '/dashboard/accounts', name: 'アカウント管理' },
+    { path: '/dashboard/security', name: 'セキュリティ' },
     { path: '/liff', name: 'LIFF Home' },
     { path: '/liff/surveys', name: 'LIFF Surveys' },
     { path: '/liff/history', name: 'LIFF History' },
