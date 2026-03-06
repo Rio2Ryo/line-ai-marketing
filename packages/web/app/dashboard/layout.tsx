@@ -43,6 +43,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/webhook-stream': 'page.webhookStream',
   '/dashboard/accounts': 'page.accounts',
   '/dashboard/security': 'page.security',
+  '/dashboard/cron-tasks': 'page.cronTasks',
   '/dashboard/settings': 'page.settings',
 };
 

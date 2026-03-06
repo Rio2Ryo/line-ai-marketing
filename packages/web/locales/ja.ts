@@ -34,6 +34,7 @@ const ja = {
     webhookStream: 'Webhookストリーム',
     accounts: 'アカウント管理',
     security: 'セキュリティ',
+    cronTasks: '定期タスク',
     settings: '設定',
   },
   page: {
@@ -71,6 +72,7 @@ const ja = {
     webhookStream: 'Webhookリアルタイムストリーム',
     accounts: 'LINEアカウント管理',
     security: 'セキュリティ監査',
+    cronTasks: '定期タスク管理',
     settings: '設定',
   },
   common: {

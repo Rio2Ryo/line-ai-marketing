@@ -45,6 +45,8 @@ import { rateLimitRoutes } from "./routes/rate-limit";
 import { webhookStreamRoutes } from "./routes/webhook-stream";
 import { accountRoutes } from "./routes/accounts";
 import { securityRoutes } from "./routes/security";
+import { cronTaskRoutes } from "./routes/cron-tasks";
+import { richmenuRuleRoutes } from "./routes/richmenu-rules";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -139,6 +141,8 @@ app.route("/api/rate-limit", rateLimitRoutes);
 app.route("/api/webhook-stream", webhookStreamRoutes);
 app.route("/api/accounts", accountRoutes);
 app.route("/api/security", securityRoutes);
+app.route("/api/cron-tasks", cronTaskRoutes);
+app.route("/api/richmenu-rules", richmenuRuleRoutes);
 
 app.notFound((c) => c.json({ success: false, error: "Not Found" }, 404));
 app.onError((err, c) => {

@@ -36,6 +36,7 @@ const en: Translations = {
     webhookStream: 'Webhook Stream',
     accounts: 'Accounts',
     security: 'Security',
+    cronTasks: 'Cron Tasks',
     settings: 'Settings',
   },
   page: {
@@ -73,6 +74,7 @@ const en: Translations = {
     webhookStream: 'Webhook Realtime Stream',
     accounts: 'LINE Account Management',
     security: 'Security Audit',
+    cronTasks: 'Cron Tasks',
     settings: 'Settings',
   },
   common: {
