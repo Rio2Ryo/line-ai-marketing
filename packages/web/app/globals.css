@@ -8,8 +8,35 @@
   --accent-light: #4cd880;
 }
 
+/* Optimize rendering performance */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  text-rendering: optimizeSpeed;
+}
+
+/* Optimize off-screen content rendering */
+main > div {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* Smooth scrolling with reduced-motion respect */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* Optimize image rendering */
+img {
+  content-visibility: auto;
+}
+
+/* Reduce layout shifts from loading states */
+.animate-pulse {
+  contain: layout style paint;
 }
 
 /* Dark mode overrides for common card patterns */

@@ -62,14 +62,40 @@ app.use("*", cors({
 
 app.use("*", apiLoggerMiddleware);
 
+// Cache-Control middleware for read-heavy GET endpoints
+const cacheablePatterns = [
+  { pattern: /^\/api\/templates\/categories$/, maxAge: 300 },
+  { pattern: /^\/api\/templates\/?$/, maxAge: 60 },
+  { pattern: /^\/api\/stats/, maxAge: 30 },
+  { pattern: /^\/api\/widgets\/data/, maxAge: 30 },
+  { pattern: /^\/api\/line-stats/, maxAge: 120 },
+  { pattern: /^\/api\/reports/, maxAge: 60 },
+];
+
+app.use("*", async (c, next) => {
+  await next();
+  if (c.req.method === "GET" && c.res.status === 200) {
+    const path = new URL(c.req.url).pathname;
+    for (const { pattern, maxAge } of cacheablePatterns) {
+      if (pattern.test(path)) {
+        c.res.headers.set("Cache-Control", `public, max-age=${maxAge}, stale-while-revalidate=${maxAge * 2}`);
+        break;
+      }
+    }
+  }
+});
+
 app.get("/", (c) => c.json({
   status: "ok",
   service: "LINE AI Marketing API",
-  version: "0.6.0",
+  version: "0.7.0",
   timestamp: new Date().toISOString(),
 }));
 
-app.get("/health", (c) => c.json({ status: "healthy" }));
+app.get("/health", (c) => {
+  c.header("Cache-Control", "no-cache");
+  return c.json({ status: "healthy" });
+});
 
 app.route("/webhook", webhookRoutes);
 app.route("/auth", authRoutes);

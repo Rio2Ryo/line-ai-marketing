@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /liff/
+Disallow: /auth/
+
+Sitemap: https://line-ai-marketing.pages.dev/sitemap.xml
