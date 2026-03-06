@@ -23,6 +23,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/ab-tests': 'page.abTests',
   '/dashboard/ai-classify': 'page.aiClassify',
   '/dashboard/analytics': 'page.analytics',
+  '/dashboard/chat-analytics': 'page.chatAnalytics',
   '/dashboard/scheduled': 'page.scheduled',
   '/dashboard/auto-response': 'page.autoResponse',
   '/dashboard/reports': 'page.reports',
