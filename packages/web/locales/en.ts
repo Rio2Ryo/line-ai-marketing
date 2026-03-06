@@ -30,6 +30,7 @@ const en: Translations = {
     roles: 'Roles',
     apiMonitor: 'API Monitor',
     notifications: 'Notifications',
+    lineStats: 'LINE Stats',
     settings: 'Settings',
   },
   page: {
@@ -61,6 +62,7 @@ const en: Translations = {
     roles: 'Role Management',
     apiMonitor: 'API Usage Monitoring',
     notifications: 'Notification Center',
+    lineStats: 'LINE Stats Dashboard',
     settings: 'Settings',
   },
   common: {

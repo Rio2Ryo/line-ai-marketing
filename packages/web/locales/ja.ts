@@ -28,6 +28,7 @@ const ja = {
     roles: '権限管理',
     apiMonitor: 'APIモニター',
     notifications: '通知',
+    lineStats: 'LINE統計',
     settings: '設定',
   },
   page: {
@@ -59,6 +60,7 @@ const ja = {
     roles: '権限管理',
     apiMonitor: 'API利用量モニタリング',
     notifications: '通知センター',
+    lineStats: 'LINE統計ダッシュボード',
     settings: '設定',
   },
   common: {

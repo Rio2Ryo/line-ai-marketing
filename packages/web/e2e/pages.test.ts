@@ -58,6 +58,7 @@ describe('Dashboard pages return 200', () => {
     { path: '/dashboard/import', name: 'データインポート' },
     { path: '/dashboard/api-monitor', name: 'APIモニター' },
     { path: '/dashboard/notifications', name: '通知センター' },
+    { path: '/dashboard/line-stats', name: 'LINE統計' },
     { path: '/liff', name: 'LIFF Home' },
     { path: '/liff/surveys', name: 'LIFF Surveys' },
     { path: '/liff/history', name: 'LIFF History' },

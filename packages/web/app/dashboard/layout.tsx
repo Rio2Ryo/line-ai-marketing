@@ -36,6 +36,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/roles': 'page.roles',
   '/dashboard/api-monitor': 'page.apiMonitor',
   '/dashboard/notifications': 'page.notifications',
+  '/dashboard/line-stats': 'page.lineStats',
   '/dashboard/settings': 'page.settings',
 };
 
