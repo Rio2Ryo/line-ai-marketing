@@ -102,6 +102,7 @@ scheduledDeliveryRoutes.post('/', async (c) => {
       title: string;
       message_content: string;
       message_type?: string;
+      messages_json?: string;
       target_type: string;
       target_config?: string;
       scheduled_at: string;
@@ -110,8 +111,9 @@ scheduledDeliveryRoutes.post('/', async (c) => {
     if (!body.title || !body.title.trim()) {
       return c.json({ success: false, error: 'title is required' }, 400);
     }
-    if (!body.message_content || !body.message_content.trim()) {
-      return c.json({ success: false, error: 'message_content is required' }, 400);
+    // Support both legacy message_content and new messages_json
+    if (!body.message_content?.trim() && !body.messages_json?.trim()) {
+      return c.json({ success: false, error: 'message_content or messages_json is required' }, 400);
     }
     if (!body.target_type || !['all', 'segment', 'tag'].includes(body.target_type)) {
       return c.json({ success: false, error: 'target_type must be one of: all, segment, tag' }, 400);
@@ -130,14 +132,15 @@ scheduledDeliveryRoutes.post('/', async (c) => {
     }
 
     const id = crypto.randomUUID();
-    const messageType = body.message_type || 'text';
+    const messageType = body.messages_json ? 'multi' : (body.message_type || 'text');
+    const messageContent = body.message_content?.trim() || '';
     const targetConfig = body.target_config || null;
 
     await c.env.DB.prepare(
       `INSERT INTO scheduled_deliveries (id, title, message_type, message_content, target_type, target_config, scheduled_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(id, body.title.trim(), messageType, body.message_content.trim(), body.target_type, targetConfig, body.scheduled_at)
+      .bind(id, body.title.trim(), messageType, body.messages_json || messageContent, body.target_type, targetConfig, body.scheduled_at)
       .run();
 
     const created = await c.env.DB.prepare(

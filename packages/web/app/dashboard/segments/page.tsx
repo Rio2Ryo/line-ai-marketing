@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import MessageBuilder, { MessageBlock, isValidMessages } from '@/components/message-builder';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://line-ai-marketing-api.common-gifted-tokyo.workers.dev';
 
@@ -348,7 +349,7 @@ export default function SegmentsPage() {
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [messageText, setMessageText] = useState('');
+  const [messageBlocks, setMessageBlocks] = useState<MessageBlock[]>([{ type: 'text', text: '' }]);
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ sent: number; failed: number } | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -393,8 +394,8 @@ export default function SegmentsPage() {
   };
 
   const handleSend = async () => {
-    if (!messageText.trim() || previewCount === null || previewCount === 0) {
-      alert('先にプレビューで対象者を確認してください');
+    if (!isValidMessages(messageBlocks) || previewCount === null || previewCount === 0) {
+      alert('先にプレビューで対象者を確認し、メッセージを入力してください');
       return;
     }
     if (!window.confirm(`${previewCount}人にメッセージを配信します。よろしいですか？`)) return;
@@ -402,7 +403,7 @@ export default function SegmentsPage() {
     try {
       const res = await authFetch(`${API_BASE}/api/segments/send`, {
         method: 'POST',
-        body: JSON.stringify({ condition_group: rootGroup, message: { type: 'text', text: messageText } }),
+        body: JSON.stringify({ condition_group: rootGroup, messages: messageBlocks }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || '配信に失敗しました');
@@ -481,15 +482,16 @@ export default function SegmentsPage() {
         )}
       </section>
 
-      {/* メッセージ入力 */}
+      {/* メッセージビルダー */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">配信メッセージ</h2>
-        <textarea value={messageText} onChange={e => setMessageText(e.target.value)} rows={4}
-          placeholder="配信するメッセージを入力してください"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-gray-900">配信メッセージ</h2>
+          <p className="text-xs text-gray-500 mt-1">テキスト・画像・動画・Flex Messageを組み合わせて最大5ブロックまで</p>
+        </div>
+        <MessageBuilder blocks={messageBlocks} onChange={setMessageBlocks} />
         <div className="flex items-center gap-4 mt-4">
           <button onClick={handleSend}
-            disabled={sending || !messageText.trim() || previewCount === null || previewCount === 0}
+            disabled={sending || !isValidMessages(messageBlocks) || previewCount === null || previewCount === 0}
             className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
             {sending ? '配信中...' : '配信実行'}
           </button>

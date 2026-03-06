@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth, getApiUrl } from '@/lib/auth';
+import MessageBuilder, { MessageBlock, isValidMessages } from '@/components/message-builder';
 
 const API = getApiUrl();
 
@@ -39,6 +40,8 @@ export default function ScheduledPage() {
   const [saving, setSaving] = useState(false);
   const [fTitle, setFTitle] = useState('');
   const [fContent, setFContent] = useState('');
+  const [fBlocks, setFBlocks] = useState<MessageBlock[]>([{ type: 'text', text: '' }]);
+  const [fUseBuilder, setFUseBuilder] = useState(false);
   const [fTarget, setFTarget] = useState<'all' | 'segment' | 'tag'>('all');
   const [fConfig, setFConfig] = useState('');
   const [fAt, setFAt] = useState('');
@@ -65,11 +68,17 @@ export default function ScheduledPage() {
   useEffect(() => { load(pg); }, [load, pg]);
   useEffect(() => { loadCal(cY, cM); }, [loadCal, cY, cM]);
 
-  const reset = () => { setFTitle(''); setFContent(''); setFTarget('all'); setFConfig(''); setFAt(''); };
+  const reset = () => { setFTitle(''); setFContent(''); setFBlocks([{ type: 'text', text: '' }]); setFUseBuilder(false); setFTarget('all'); setFConfig(''); setFAt(''); };
   const closeModal = () => { setModal(null); setEditTgt(null); reset(); };
 
   const buildBody = () => {
-    const b: Record<string, unknown> = { title: fTitle, message_content: fContent, target_type: fTarget, scheduled_at: new Date(fAt).toISOString() };
+    const b: Record<string, unknown> = { title: fTitle, target_type: fTarget, scheduled_at: new Date(fAt).toISOString() };
+    if (fUseBuilder && isValidMessages(fBlocks)) {
+      b.messages_json = JSON.stringify(fBlocks);
+      b.message_content = fBlocks.map((bl: MessageBlock) => bl.type === 'text' ? (bl as any).text?.substring(0, 30) : `[${bl.type}]`).join(' / ');
+    } else {
+      b.message_content = fContent;
+    }
     if (fTarget === 'tag' && fConfig.trim()) b.target_config = JSON.stringify({ tags: fConfig.split(',').map(t => t.trim()).filter(Boolean) });
     else if (fTarget === 'segment' && fConfig.trim()) b.target_config = fConfig;
     else b.target_config = '';
@@ -77,7 +86,8 @@ export default function ScheduledPage() {
   };
 
   const handleCreate = async () => {
-    if (!fTitle.trim() || !fContent.trim() || !fAt) return;
+    const contentValid = fUseBuilder ? isValidMessages(fBlocks) : fContent.trim().length > 0;
+    if (!fTitle.trim() || !contentValid || !fAt) return;
     setSaving(true); setErr(null);
     try {
       const r = await fetchWithAuth(`${API}/api/scheduled`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildBody()) });
@@ -89,7 +99,8 @@ export default function ScheduledPage() {
   };
 
   const handleEdit = async () => {
-    if (!editTgt || !fTitle.trim() || !fContent.trim() || !fAt) return;
+    const contentValid = fUseBuilder ? isValidMessages(fBlocks) : fContent.trim().length > 0;
+    if (!editTgt || !fTitle.trim() || !contentValid || !fAt) return;
     setSaving(true); setErr(null);
     try {
       const r = await fetchWithAuth(`${API}/api/scheduled/${editTgt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildBody()) });
@@ -138,8 +149,21 @@ export default function ScheduledPage() {
         <input type="text" value={fTitle} onChange={e => setFTitle(e.target.value)} className={inp} placeholder="例: 週末キャンペーン配信" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">メッセージ内容 <span className="text-red-500">*</span></label>
-        <textarea rows={4} value={fContent} onChange={e => setFContent(e.target.value)} className={inp + " resize-y"} placeholder="配信するメッセージを入力してください" />
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-gray-700">メッセージ内容 <span className="text-red-500">*</span></label>
+          <button
+            type="button"
+            onClick={() => setFUseBuilder(!fUseBuilder)}
+            className={`text-xs px-2 py-1 rounded-lg border transition-colors ${fUseBuilder ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`}
+          >
+            {fUseBuilder ? 'シンプルモードに切替' : 'マルチメッセージ'}
+          </button>
+        </div>
+        {fUseBuilder ? (
+          <MessageBuilder blocks={fBlocks} onChange={setFBlocks} />
+        ) : (
+          <textarea rows={4} value={fContent} onChange={e => setFContent(e.target.value)} className={inp + " resize-y"} placeholder="配信するメッセージを入力してください" />
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">配信対象 <span className="text-red-500">*</span></label>

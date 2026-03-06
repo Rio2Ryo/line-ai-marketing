@@ -328,7 +328,8 @@ segmentRoutes.post('/send', async (c) => {
     const body = await c.req.json<{
       conditions?: SegmentConditionV1[];
       condition_group?: ConditionGroupV2;
-      message: { type: string; text: string };
+      message?: { type: string; text: string };
+      messages?: unknown[];
     }>();
 
     let group: ConditionGroupV2;
@@ -341,8 +342,21 @@ segmentRoutes.post('/send', async (c) => {
       return c.json({ success: false, error: 'conditions or condition_group required' }, 400);
     }
 
-    if (!body.message || !body.message.text) {
-      return c.json({ success: false, error: 'message.text is required' }, 400);
+    // Support both V1 single message and V2 messages array
+    let lineMessages: unknown[];
+    let contentSummary: string;
+
+    if (body.messages && Array.isArray(body.messages) && body.messages.length > 0) {
+      lineMessages = body.messages.slice(0, 5); // LINE API max 5
+      contentSummary = lineMessages.map((m: any) => {
+        if (m.type === 'text') return m.text?.substring(0, 30) || '';
+        return `[${m.type}]`;
+      }).join(' / ');
+    } else if (body.message && body.message.text) {
+      lineMessages = [{ type: body.message.type || 'text', text: body.message.text }];
+      contentSummary = body.message.text;
+    } else {
+      return c.json({ success: false, error: 'messages array or message.text is required' }, 400);
     }
 
     const { sql, bindings } = buildSegmentQueryV2(group, 'u.id, u.line_user_id');
@@ -360,14 +374,14 @@ segmentRoutes.post('/send', async (c) => {
       try {
         await sendPushMessage(
           user.line_user_id,
-          [{ type: body.message.type || 'text', text: body.message.text }],
+          lineMessages,
           c.env.LINE_CHANNEL_ACCESS_TOKEN
         );
 
-        const msgId = crypto.randomUUID();
+        const firstType = (lineMessages[0] as any)?.type || 'text';
         await c.env.DB.prepare(
-          'INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, ?, ?, ?)'
-        ).bind(msgId, user.id, 'outbound', 'text', body.message.text).run();
+          'INSERT INTO messages (id, user_id, direction, message_type, content, raw_json) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(crypto.randomUUID(), user.id, 'outbound', firstType, contentSummary.substring(0, 200), JSON.stringify(lineMessages)).run();
 
         await c.env.DB.prepare(
           "INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, sent_at) VALUES (?, NULL, NULL, ?, 'sent', datetime('now'))"

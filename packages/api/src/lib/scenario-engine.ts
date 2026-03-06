@@ -180,11 +180,24 @@ export async function processRetries(env: Env): Promise<{ processed: number; sen
   return { processed: (retryable.results || []).length, sent, failed };
 }
 
-async function pushMessage(env: Env, lineUserId: string, text: string): Promise<void> {
+async function pushMessage(env: Env, lineUserId: string, content: string): Promise<void> {
+  // Try parsing as JSON messages array for multi-message support
+  let messages: unknown[];
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
+      messages = parsed.slice(0, 5);
+    } else {
+      messages = [{ type: 'text', text: content }];
+    }
+  } catch {
+    messages = [{ type: 'text', text: content }];
+  }
+
   const res = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env.LINE_CHANNEL_ACCESS_TOKEN },
-    body: JSON.stringify({ to: lineUserId, messages: [{ type: 'text', text }] }),
+    body: JSON.stringify({ to: lineUserId, messages }),
   });
   if (!res.ok) { const err = await res.text(); throw new Error('Push failed: ' + res.status + ' ' + err); }
 }
