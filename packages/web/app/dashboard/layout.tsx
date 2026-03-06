@@ -38,6 +38,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/notifications': 'page.notifications',
   '/dashboard/line-stats': 'page.lineStats',
   '/dashboard/rate-limit': 'page.rateLimit',
+  '/dashboard/flex-editor': 'page.flexEditor',
   '/dashboard/settings': 'page.settings',
 };
 

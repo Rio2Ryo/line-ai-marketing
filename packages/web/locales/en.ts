@@ -32,6 +32,7 @@ const en: Translations = {
     notifications: 'Notifications',
     lineStats: 'LINE Stats',
     rateLimit: 'Rate Limit',
+    flexEditor: 'Flex Editor',
     settings: 'Settings',
   },
   page: {
@@ -65,6 +66,7 @@ const en: Translations = {
     notifications: 'Notification Center',
     lineStats: 'LINE Stats Dashboard',
     rateLimit: 'Rate Limit Monitor',
+    flexEditor: 'Flex Message Visual Editor',
     settings: 'Settings',
   },
   common: {

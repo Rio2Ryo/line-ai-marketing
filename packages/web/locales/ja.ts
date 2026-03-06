@@ -30,6 +30,7 @@ const ja = {
     notifications: '通知',
     lineStats: 'LINE統計',
     rateLimit: 'レート制限',
+    flexEditor: 'Flexエディター',
     settings: '設定',
   },
   page: {
@@ -63,6 +64,7 @@ const ja = {
     notifications: '通知センター',
     lineStats: 'LINE統計ダッシュボード',
     rateLimit: 'レート制限モニター',
+    flexEditor: 'Flex Messageビジュアルエディター',
     settings: '設定',
   },
   common: {
