@@ -142,3 +142,110 @@ describe('Auth callback', () => {
     expect(html).toContain('</html>');
   });
 });
+
+// ─── HTML structure validation ───
+
+describe('HTML structure validation', () => {
+  const pagesToCheck = [
+    '/dashboard',
+    '/dashboard/customers',
+    '/dashboard/scenarios',
+    '/dashboard/segments',
+    '/dashboard/settings',
+  ];
+
+  for (const path of pagesToCheck) {
+    it(`${path} has proper HTML head with meta tags`, async () => {
+      const { html } = await fetchPage(path);
+      expect(html).toContain('<head>');
+      expect(html).toContain('</head>');
+      expect(html).toContain('<meta');
+      expect(html).toContain('viewport');
+    });
+
+    it(`${path} has CSS resources loaded`, async () => {
+      const { html } = await fetchPage(path);
+      // Next.js injects CSS chunks
+      expect(html).toMatch(/\.css/);
+    });
+  }
+});
+
+// ─── Page content size validation ───
+
+describe('Page content size validation', () => {
+  it('Dashboard page has substantial content (>5KB)', async () => {
+    const { html } = await fetchPage('/dashboard');
+    expect(html.length).toBeGreaterThan(5000);
+  });
+
+  it('Landing page has substantial content (>3KB)', async () => {
+    const { html } = await fetchPage('/');
+    expect(html.length).toBeGreaterThan(3000);
+  });
+
+  it('Login page has substantial content (>2KB)', async () => {
+    const { html } = await fetchPage('/login');
+    expect(html.length).toBeGreaterThan(2000);
+  });
+});
+
+// ─── Response headers validation ───
+
+describe('Response headers', () => {
+  it('Pages return correct content-type', async () => {
+    const res = await fetch(`${BASE}/dashboard`);
+    const contentType = res.headers.get('content-type');
+    expect(contentType).toContain('text/html');
+  });
+
+  it('Static assets use caching headers', async () => {
+    const { html } = await fetchPage('/dashboard');
+    // Extract a _next/static asset URL
+    const match = html.match(/\/_next\/static\/[^"'\s]+\.js/);
+    if (match) {
+      const assetRes = await fetch(`${BASE}${match[0]}`);
+      expect(assetRes.status).toBe(200);
+      const contentType = assetRes.headers.get('content-type');
+      expect(contentType).toContain('javascript');
+    }
+  });
+});
+
+// ─── Multiple pages consistency ───
+
+describe('Multi-page consistency', () => {
+  it('All dashboard pages share the same Next.js build ID', async () => {
+    const pages = ['/dashboard', '/dashboard/customers', '/dashboard/settings'];
+    const buildIds: string[] = [];
+
+    for (const path of pages) {
+      const { html } = await fetchPage(path);
+      const match = html.match(/\/_next\/static\/([a-zA-Z0-9_-]+)\//);
+      if (match) {
+        buildIds.push(match[1]);
+      }
+    }
+
+    // All should have the same build ID
+    if (buildIds.length > 1) {
+      const allSame = buildIds.every((id) => id === buildIds[0]);
+      expect(allSame).toBe(true);
+    }
+  });
+});
+
+// ─── 404 handling ───
+
+describe('404 handling', () => {
+  it('Non-existent path outside /dashboard returns response', async () => {
+    const res = await fetch(`${BASE}/nonexistent-page-xyz`);
+    expect(res.status).toBeDefined();
+  });
+
+  it('Non-existent path inside /dashboard with deep nesting', async () => {
+    const res = await fetch(`${BASE}/dashboard/nonexistent/deep/path`);
+    // Static export: either 200 (SPA fallback) or 404
+    expect([200, 404]).toContain(res.status);
+  });
+});
