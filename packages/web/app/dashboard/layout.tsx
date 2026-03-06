@@ -6,6 +6,7 @@ import Header from '@/components/header';
 import { usePathname } from 'next/navigation';
 import { useTranslation, I18nProvider } from '@/lib/i18n';
 import { RoleProvider } from '@/lib/role';
+import { AccountProvider } from '@/lib/account';
 
 const pageKeys: Record<string, string> = {
   '/dashboard': 'page.dashboard',
@@ -40,6 +41,7 @@ const pageKeys: Record<string, string> = {
   '/dashboard/rate-limit': 'page.rateLimit',
   '/dashboard/flex-editor': 'page.flexEditor',
   '/dashboard/webhook-stream': 'page.webhookStream',
+  '/dashboard/accounts': 'page.accounts',
   '/dashboard/settings': 'page.settings',
 };
 
@@ -51,7 +53,9 @@ export default function DashboardLayout({
   return (
     <I18nProvider>
       <RoleProvider>
-        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+        <AccountProvider>
+          <DashboardLayoutInner>{children}</DashboardLayoutInner>
+        </AccountProvider>
       </RoleProvider>
     </I18nProvider>
   );

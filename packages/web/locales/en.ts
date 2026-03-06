@@ -34,6 +34,7 @@ const en: Translations = {
     rateLimit: 'Rate Limit',
     flexEditor: 'Flex Editor',
     webhookStream: 'Webhook Stream',
+    accounts: 'Accounts',
     settings: 'Settings',
   },
   page: {
@@ -69,6 +70,7 @@ const en: Translations = {
     rateLimit: 'Rate Limit Monitor',
     flexEditor: 'Flex Message Visual Editor',
     webhookStream: 'Webhook Realtime Stream',
+    accounts: 'LINE Account Management',
     settings: 'Settings',
   },
   common: {

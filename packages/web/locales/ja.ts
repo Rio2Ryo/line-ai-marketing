@@ -32,6 +32,7 @@ const ja = {
     rateLimit: 'レート制限',
     flexEditor: 'Flexエディター',
     webhookStream: 'Webhookストリーム',
+    accounts: 'アカウント管理',
     settings: '設定',
   },
   page: {
@@ -67,6 +68,7 @@ const ja = {
     rateLimit: 'レート制限モニター',
     flexEditor: 'Flex Messageビジュアルエディター',
     webhookStream: 'Webhookリアルタイムストリーム',
+    accounts: 'LINEアカウント管理',
     settings: '設定',
   },
   common: {

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { removeToken } from "@/lib/auth";
 import { useTranslation, Locale } from '@/lib/i18n';
 import { useRole } from '@/lib/role';
+import { useAccount } from '@/lib/account';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://line-ai-marketing-api.common-gifted-tokyo.workers.dev';
 
@@ -67,6 +68,7 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
   const router = useRouter();
   const { t, locale, setLocale } = useTranslation();
   const { role } = useRole();
+  const { accounts, currentAccountId, currentAccount, switchAccount } = useAccount();
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
@@ -268,6 +270,20 @@ export default function Header({ title, onMenuToggle }: HeaderProps) {
             </div>
           )}
         </div>
+
+        {/* Account Switcher */}
+        {accounts.length > 1 && (
+          <select
+            value={currentAccountId}
+            onChange={(e) => switchAccount(e.target.value)}
+            className="px-2 py-1 text-xs border border-gray-200 rounded-lg bg-white text-gray-700 max-w-[140px] truncate"
+            title={currentAccount?.name || ''}
+          >
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.name}</option>
+            ))}
+          </select>
+        )}
 
         <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
           <button
