@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import { evaluateScoreActions } from './score-actions';
+import { evaluateTriggers, executeScenario } from '../lib/scenario-engine';
 
 type AuthVars = { userId: string };
 export const engagementScoreRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -374,11 +375,28 @@ engagementScoreRoutes.post('/calculate', async (c) => {
 
     // Evaluate auto-action rules for rank/score changes
     let actionResult = { triggered: 0, executed: 0 };
+    let scenarioTriggered = 0;
     if (scoreChanges.length > 0) {
       try {
         actionResult = await evaluateScoreActions(c.env.DB, c.env, scoreChanges);
       } catch (err) {
         console.error('Score auto-action evaluation error:', err);
+      }
+
+      // Evaluate rank_change scenario triggers
+      for (const change of scoreChanges) {
+        if (change.prevRank !== change.newRank) {
+          try {
+            const sids = await evaluateTriggers(c.env, 'rank_change', {
+              prev_rank: change.prevRank,
+              new_rank: change.newRank,
+            });
+            for (const sid of sids) {
+              await executeScenario(c.env, sid, change.userId);
+              scenarioTriggered++;
+            }
+          } catch (e) { console.error('rank_change trigger error:', e); }
+        }
       }
     }
 
@@ -389,6 +407,7 @@ engagementScoreRoutes.post('/calculate', async (c) => {
         score_changes: scoreChanges.length,
         actions_triggered: actionResult.triggered,
         actions_executed: actionResult.executed,
+        scenarios_triggered: scenarioTriggered,
       },
     });
   } catch (err) {

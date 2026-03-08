@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { evaluateTriggers, executeScenario } from '../lib/scenario-engine';
 
 type AuthVars = { userId: string };
 export const customerRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -72,6 +73,15 @@ customerRoutes.post('/:id/tags', async (c) => {
   try {
     await c.env.DB.prepare('INSERT INTO user_tags (user_id, tag_id) VALUES (?, ?)').bind(userId, tag_id).run();
   } catch {}
+
+  // Evaluate tag_added scenario triggers
+  try {
+    const sids = await evaluateTriggers(c.env, 'tag_added', { tag_id });
+    for (const sid of sids) {
+      await executeScenario(c.env, sid, userId);
+    }
+  } catch (e) { console.error('tag_added trigger error:', e); }
+
   return c.json({ success: true });
 });
 

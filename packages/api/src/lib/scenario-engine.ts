@@ -1,13 +1,59 @@
 import { Env } from '../types';
 
+// ─── DB Migration: expand trigger_type CHECK constraint ───
+
+let migrationDone = false;
+
+async function ensureExtendedTriggers(db: D1Database): Promise<void> {
+  if (migrationDone) return;
+  try {
+    // Test if new trigger types are allowed
+    await db.prepare(
+      "INSERT INTO scenarios (id, name, trigger_type, is_active) VALUES ('__trigger_test__', '__test__', 'rank_change', 0)"
+    ).run();
+    await db.prepare("DELETE FROM scenarios WHERE id = '__trigger_test__'").run();
+    migrationDone = true;
+  } catch {
+    // CHECK constraint blocks new types — migrate table
+    try {
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS scenarios_v2 (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          trigger_type TEXT NOT NULL,
+          trigger_config TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO scenarios_v2 SELECT * FROM scenarios;
+        DROP TABLE scenarios;
+        ALTER TABLE scenarios_v2 RENAME TO scenarios;
+      `);
+      migrationDone = true;
+    } catch (e) {
+      console.error('Scenario migration failed:', e);
+      migrationDone = true; // Don't retry
+    }
+  }
+}
+
+// ─── Trigger Evaluation ───
+
+const RANK_ORDER: Record<string, number> = { S: 5, A: 4, B: 3, C: 2, D: 1 };
+
 export async function evaluateTriggers(env: Env, eventType: string, data: any): Promise<string[]> {
+  await ensureExtendedTriggers(env.DB);
   const ids: string[] = [];
 
+  // follow — 友だち追加
   if (eventType === 'follow') {
     const rows = await env.DB.prepare("SELECT id FROM scenarios WHERE trigger_type = 'follow' AND is_active = 1").all();
     for (const r of rows.results || []) ids.push((r as any).id);
   }
 
+  // message_keyword — キーワードマッチ
   if (eventType === 'message_keyword' && data.text) {
     const rows = await env.DB.prepare("SELECT id, trigger_config FROM scenarios WHERE trigger_type = 'message_keyword' AND is_active = 1").all();
     for (const r of (rows.results || []) as any[]) {
@@ -19,8 +65,70 @@ export async function evaluateTriggers(env: Env, eventType: string, data: any): 
     }
   }
 
+  // tag_added — タグ付与時
+  if (eventType === 'tag_added' && data.tag_id) {
+    const rows = await env.DB.prepare("SELECT id, trigger_config FROM scenarios WHERE trigger_type = 'tag_added' AND is_active = 1").all();
+    for (const r of (rows.results || []) as any[]) {
+      try {
+        const cfg = JSON.parse(r.trigger_config || '{}');
+        const tagIds: string[] = cfg.tag_ids || [];
+        // Empty tag_ids = match any tag; otherwise match specific tags
+        if (tagIds.length === 0 || tagIds.includes(data.tag_id)) ids.push(r.id);
+      } catch {}
+    }
+  }
+
+  // rank_change — スコアランク変動
+  if (eventType === 'rank_change' && data.new_rank) {
+    const rows = await env.DB.prepare("SELECT id, trigger_config FROM scenarios WHERE trigger_type = 'rank_change' AND is_active = 1").all();
+    for (const r of (rows.results || []) as any[]) {
+      try {
+        const cfg = JSON.parse(r.trigger_config || '{}');
+        const direction = cfg.direction; // 'up' | 'down' | 'any' | undefined
+        const targetRank = cfg.target_rank; // specific rank or undefined
+
+        const prevOrd = RANK_ORDER[data.prev_rank] || 0;
+        const newOrd = RANK_ORDER[data.new_rank] || 0;
+
+        let matches = true;
+        if (direction === 'up' && newOrd <= prevOrd) matches = false;
+        if (direction === 'down' && newOrd >= prevOrd) matches = false;
+        if (targetRank && data.new_rank !== targetRank) matches = false;
+
+        if (matches) ids.push(r.id);
+      } catch {}
+    }
+  }
+
+  // conversion — コンバージョン達成
+  if (eventType === 'conversion' && data.goal_id) {
+    const rows = await env.DB.prepare("SELECT id, trigger_config FROM scenarios WHERE trigger_type = 'conversion' AND is_active = 1").all();
+    for (const r of (rows.results || []) as any[]) {
+      try {
+        const cfg = JSON.parse(r.trigger_config || '{}');
+        const goalIds: string[] = cfg.goal_ids || [];
+        // Empty = match any goal; otherwise match specific goals
+        if (goalIds.length === 0 || goalIds.includes(data.goal_id)) ids.push(r.id);
+      } catch {}
+    }
+  }
+
+  // follow_source — 特定経路からの友だち追加
+  if (eventType === 'follow_source' && data.source_code) {
+    const rows = await env.DB.prepare("SELECT id, trigger_config FROM scenarios WHERE trigger_type = 'follow_source' AND is_active = 1").all();
+    for (const r of (rows.results || []) as any[]) {
+      try {
+        const cfg = JSON.parse(r.trigger_config || '{}');
+        const sourceCodes: string[] = cfg.source_codes || [];
+        if (sourceCodes.length === 0 || sourceCodes.includes(data.source_code)) ids.push(r.id);
+      } catch {}
+    }
+  }
+
   return ids;
 }
+
+// ─── Scenario Execution ───
 
 export async function executeScenario(env: Env, scenarioId: string, userId: string): Promise<void> {
   const steps = await env.DB.prepare('SELECT * FROM scenario_steps WHERE scenario_id = ? ORDER BY step_order ASC').bind(scenarioId).all();
@@ -37,7 +145,6 @@ export async function executeScenario(env: Env, scenarioId: string, userId: stri
         await env.DB.prepare("INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, sent_at) VALUES (?, ?, ?, ?, 'sent', datetime('now'))").bind(crypto.randomUUID(), scenarioId, step.id, userId).run();
         await env.DB.prepare("INSERT INTO messages (id, user_id, direction, message_type, content) VALUES (?, ?, 'outbound', 'text', ?)").bind(crypto.randomUUID(), userId, step.message_content).run();
       } catch (e) {
-        // Schedule first retry in 10 minutes (exponential backoff: 10, 20, 40 min)
         const nextRetryAt = new Date(Date.now() + 10 * 60000).toISOString();
         await env.DB.prepare("INSERT INTO delivery_logs (id, scenario_id, scenario_step_id, user_id, status, error_message, retry_count, max_retries, next_retry_at) VALUES (?, ?, ?, ?, 'failed', ?, 0, 3, ?)").bind(crypto.randomUUID(), scenarioId, step.id, userId, String(e), nextRetryAt).run();
       }
@@ -47,6 +154,8 @@ export async function executeScenario(env: Env, scenarioId: string, userId: stri
     }
   }
 }
+
+// ─── Scheduled Delivery Processing ───
 
 export async function processScheduledDeliveries(env: Env): Promise<{ processed: number; sent: number; failed: number }> {
   const pending = await env.DB.prepare("SELECT dl.*, ss.message_content FROM delivery_logs dl JOIN scenario_steps ss ON dl.scenario_step_id = ss.id WHERE dl.status = 'pending' AND dl.scheduled_at <= datetime('now') LIMIT 50").all();
@@ -132,13 +241,14 @@ async function resolveTargetUsers(env: Env, targetType: string, targetConfig: st
   }
 
   if (targetType === 'segment' && targetConfig) {
-    // segment config is stored as JSON conditions — simplified to 'all' for now
     const rows = await env.DB.prepare("SELECT line_user_id FROM users WHERE status = 'active' LIMIT 1000").all();
     return (rows.results || []) as { line_user_id: string }[];
   }
 
   return [];
 }
+
+// ─── Retry Processing ───
 
 export async function processRetries(env: Env): Promise<{ processed: number; sent: number; failed: number }> {
   const retryable = await env.DB.prepare(
@@ -180,8 +290,9 @@ export async function processRetries(env: Env): Promise<{ processed: number; sen
   return { processed: (retryable.results || []).length, sent, failed };
 }
 
+// ─── LINE Push ───
+
 async function pushMessage(env: Env, lineUserId: string, content: string): Promise<void> {
-  // Try parsing as JSON messages array for multi-message support
   let messages: unknown[];
   try {
     const parsed = JSON.parse(content);
@@ -206,7 +317,6 @@ async function pushMessage(env: Env, lineUserId: string, content: string): Promi
 
     if (res.ok) return;
 
-    // Rate limited (429) — backoff and retry
     if (res.status === 429 && attempt < maxRetries) {
       const retryAfter = res.headers.get('Retry-After');
       const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseBackoff * Math.pow(2, attempt);
@@ -214,7 +324,6 @@ async function pushMessage(env: Env, lineUserId: string, content: string): Promi
       continue;
     }
 
-    // Server errors (5xx) — retry with backoff
     if (res.status >= 500 && attempt < maxRetries) {
       await new Promise(r => setTimeout(r, baseBackoff * Math.pow(2, attempt)));
       continue;

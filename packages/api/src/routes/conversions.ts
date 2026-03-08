@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { evaluateTriggers, executeScenario } from '../lib/scenario-engine';
 
 type AuthVars = { userId: string };
 export const conversionRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -174,6 +175,14 @@ conversionRoutes.post('/track', async (c) => {
       body.value || 0,
       body.metadata ? JSON.stringify(body.metadata) : null
     ).run();
+
+    // Evaluate conversion scenario triggers
+    try {
+      const sids = await evaluateTriggers(c.env, 'conversion', { goal_id: body.goal_id });
+      for (const sid of sids) {
+        await executeScenario(c.env, sid, body.user_id);
+      }
+    } catch (e) { console.error('conversion trigger error:', e); }
 
     return c.json({ success: true, data: { id } }, 201);
   } catch (err) {

@@ -355,6 +355,21 @@ async function handleFollowEvent(env: Env, event: any): Promise<void> {
   for (const sid of sids) {
     await executeScenario(env, sid, finalUserId);
   }
+
+  // Check follow source and trigger follow_source scenarios
+  try {
+    const recentSource = await env.DB.prepare(
+      `SELECT fs.source_code FROM follow_events fe
+       JOIN follow_sources fs ON fe.source_id = fs.id
+       WHERE fe.user_id = ? ORDER BY fe.created_at DESC LIMIT 1`
+    ).bind(finalUserId).first<{ source_code: string }>();
+    if (recentSource?.source_code) {
+      const srcSids = await evaluateTriggers(env, "follow_source", { source_code: recentSource.source_code });
+      for (const sid of srcSids) {
+        await executeScenario(env, sid, finalUserId);
+      }
+    }
+  } catch (e) { console.error('follow_source trigger error:', e); }
 }
 
 async function handleUnfollowEvent(env: Env, event: any): Promise<void> {
