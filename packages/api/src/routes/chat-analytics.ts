@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
 import { cached } from '../lib/cache';
+import { callClaude } from '../lib/claude';
 
 type AuthVars = { userId: string };
 export const chatAnalyticsRoutes = new Hono<{ Bindings: Env; Variables: AuthVars }>();
@@ -455,38 +456,12 @@ ${topQs || 'なし'}
 各提案は以下のJSON形式で返してください:
 [{"title": "提案タイトル", "description": "詳細説明", "priority": "high|medium|low", "action": "具体的なアクション"}]`;
 
-    const isFoundry = !!c.env.ANTHROPIC_RESOURCE;
-    const apiUrl = isFoundry
-      ? `https://${c.env.ANTHROPIC_RESOURCE}.services.ai.azure.com/anthropic/v1/messages`
-      : 'https://api.anthropic.com/v1/messages';
-    const authHeader = isFoundry
-      ? { 'Authorization': `Bearer ${c.env.ANTHROPIC_API_KEY}` }
-      : { 'x-api-key': c.env.ANTHROPIC_API_KEY };
-    const modelName = isFoundry ? 'claude-opus-4-6' : 'claude-haiku-4-5-20251001';
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeader,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: modelName,
-        max_tokens: 1500,
-        system: 'あなたはAIチャットボットの品質改善コンサルタントです。データに基づいて具体的で実行可能な改善提案をしてください。',
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('AI suggest error:', response.status, errText);
-      return c.json({ success: false, error: 'AI analysis failed' }, 500);
-    }
-
-    const aiData = await response.json() as any;
-    const content = aiData.content?.[0]?.text || '[]';
+    const content = await callClaude(
+      c.env,
+      'あなたはAIチャットボットの品質改善コンサルタントです。データに基づいて具体的で実行可能な改善提案をしてください。',
+      prompt,
+      1500
+    );
 
     // Parse JSON from response
     let suggestions: any[] = [];
