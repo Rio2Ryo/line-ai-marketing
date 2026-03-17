@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [testingChannel, setTestingChannel] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ channel: string; ok: boolean } | null>(null);
+  const [lineStatus, setLineStatus] = useState<{ channelSecret: boolean; channelToken: boolean } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,6 +47,18 @@ export default function SettingsPage() {
           const items = Array.isArray(data) ? data : data.items || [];
           setKnowledgeCount(items.length);
         }
+        // Check LINE channel configuration via health endpoint
+        try {
+          const healthRes = await fetch(getApiUrl() + '/health/deep');
+          if (healthRes.ok) {
+            const healthData = await healthRes.json();
+            const config = healthData.checks?.config || {};
+            setLineStatus({
+              channelSecret: config.line_channel_secret === 'configured',
+              channelToken: config.line_channel_token === 'configured',
+            });
+          }
+        } catch {}
       } catch (err) {
         console.error('Failed to fetch settings:', err);
       } finally {
@@ -102,6 +115,53 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('settings.title')}</h1>
+
+      {/* LINE未設定警告バナー */}
+      {lineStatus && (!lineStatus.channelSecret || !lineStatus.channelToken) && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl p-5">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                LINE Messaging API {locale === 'ja' ? '未設定' : 'Not Configured'}
+              </h3>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                {locale === 'ja'
+                  ? 'LINE本番チャネルの認証情報が未設定です。Webhook受信・メッセージ送信・LIFF連携が動作しません。AI応答やダッシュボード機能はシミュレーターで引き続き利用できます。'
+                  : 'LINE channel credentials are not configured. Webhook, message sending, and LIFF integration will not work. AI responses and dashboard features remain available via the simulator.'}
+              </p>
+              <div className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                <p className="font-medium">{locale === 'ja' ? '不足項目:' : 'Missing:'}</p>
+                <ul className="list-disc list-inside ml-1 space-y-0.5">
+                  {!lineStatus.channelSecret && (
+                    <li>LINE_CHANNEL_SECRET — {locale === 'ja' ? 'Webhook署名検証に必要' : 'Required for webhook signature verification'}</li>
+                  )}
+                  {!lineStatus.channelToken && (
+                    <li>LINE_CHANNEL_ACCESS_TOKEN — {locale === 'ja' ? 'メッセージ送信に必要' : 'Required for sending messages'}</li>
+                  )}
+                </ul>
+              </div>
+              <div className="mt-3 text-sm text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 rounded-lg p-3">
+                <p className="font-medium mb-1">{locale === 'ja' ? '設定手順:' : 'Setup steps:'}</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-xs">
+                  <li>{locale === 'ja' ? 'LINE Developers (developers.line.biz) でMessaging APIチャネルを作成' : 'Create Messaging API channel at LINE Developers (developers.line.biz)'}</li>
+                  <li>{locale === 'ja' ? 'チャネルシークレットとアクセストークンを取得' : 'Obtain channel secret and access token'}</li>
+                  <li><code className="bg-amber-200 dark:bg-amber-800 px-1 rounded text-xs">wrangler secret put LINE_CHANNEL_SECRET</code></li>
+                  <li><code className="bg-amber-200 dark:bg-amber-800 px-1 rounded text-xs">wrangler secret put LINE_CHANNEL_ACCESS_TOKEN</code></li>
+                  <li>{locale === 'ja' ? 'Webhook URLを設定: ' : 'Set webhook URL: '}<code className="bg-amber-200 dark:bg-amber-800 px-1 rounded text-xs">https://line-ai-marketing-api.common-gifted-tokyo.workers.dev/webhook</code></li>
+                </ol>
+              </div>
+              <p className="mt-2 text-xs text-amber-500 dark:text-amber-400">
+                {locale === 'ja'
+                  ? '代替手段: /api/webhook-test/simulate エンドポイントでWebhookパイプライン全体をテスト可能です。'
+                  : 'Alternative: Use /api/webhook-test/simulate to test the full webhook pipeline without LINE credentials.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 言語設定セクション */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
@@ -415,10 +475,29 @@ export default function SettingsPage() {
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-gray-900">LINE Channel ID</p>
-              <p className="text-sm text-gray-500">LINE Developersで設定されたチャネルID</p>
+              <p className="font-medium text-gray-900">Channel Secret</p>
+              <p className="text-sm text-gray-500">Webhook署名検証に使用</p>
             </div>
-            <span className="text-sm font-mono text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">****1234</span>
+            {lineStatus ? (
+              <span className={`text-sm font-medium px-3 py-1 rounded-full ${lineStatus.channelSecret ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {lineStatus.channelSecret ? '設定済み' : '未設定'}
+              </span>
+            ) : (
+              <span className="text-sm text-gray-400">確認中...</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-900">Channel Access Token</p>
+              <p className="text-sm text-gray-500">メッセージ送信・プロフィール取得に使用</p>
+            </div>
+            {lineStatus ? (
+              <span className={`text-sm font-medium px-3 py-1 rounded-full ${lineStatus.channelToken ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {lineStatus.channelToken ? '設定済み' : '未設定'}
+              </span>
+            ) : (
+              <span className="text-sm text-gray-400">確認中...</span>
+            )}
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -428,7 +507,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="mt-2 bg-gray-50 rounded-lg px-4 py-2.5 text-sm font-mono text-gray-600 break-all">
-              https://line-ai-marketing-api.workers.dev/webhook
+              https://line-ai-marketing-api.common-gifted-tokyo.workers.dev/webhook
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -436,7 +515,15 @@ export default function SettingsPage() {
               <p className="font-medium text-gray-900">接続ステータス</p>
               <p className="text-sm text-gray-500">LINE Messaging APIとの接続状態</p>
             </div>
-            <span className="text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">設定済み</span>
+            {lineStatus ? (
+              lineStatus.channelSecret && lineStatus.channelToken ? (
+                <span className="text-sm font-medium px-3 py-1 rounded-full bg-green-100 text-green-700">接続可能</span>
+              ) : (
+                <span className="text-sm font-medium px-3 py-1 rounded-full bg-amber-100 text-amber-700">設定不完全 — シミュレーターで代替可能</span>
+              )
+            ) : (
+              <span className="text-sm text-gray-400">確認中...</span>
+            )}
           </div>
         </div>
       </div>
