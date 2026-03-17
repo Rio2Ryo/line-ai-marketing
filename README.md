@@ -84,6 +84,37 @@ LINE認証情報が未設定の場合:
 - **管理画面**: ダッシュボード・顧客管理・ナレッジベース等は正常動作
 - **確認方法**: `/health/deep` エンドポイントで `line_channel_secret` / `line_channel_token` の設定状態を確認可能
 
+## Production Monitoring
+
+### Quick Setup (UptimeRobot — Free)
+
+1. Sign up at [uptimerobot.com](https://uptimerobot.com) (free: 50 monitors, 5-min intervals)
+2. Add new monitor:
+   - **Type**: Keyword
+   - **URL**: `https://line-ai-marketing-api.common-gifted-tokyo.workers.dev/health/monitor`
+   - **Keyword**: `HEALTHY`
+   - **Interval**: 5 minutes
+3. Set alert contacts (email, Slack, Telegram, etc.)
+
+### Endpoints
+
+| Endpoint | Auth | Speed | Purpose |
+|----------|------|-------|---------|
+| `GET /health/monitor` | None | ~30ms | Fast D1-only check, returns `HEALTHY`/`UNHEALTHY` keyword. For UptimeRobot/Pingdom. |
+| `POST /health/check` | None | ~3s | Deep check (D1 + Claude API) + Slack/email alert on state transitions. For cron tasks. |
+| `GET /health/deep` | None | ~3s | Full diagnostic JSON (tables, data counts, Claude, config). For debugging. |
+
+### Self-Hosted Monitoring (Alternative)
+
+Use any external cron service to call the deep health check with alerting:
+
+```bash
+# Every 5 minutes — POST /health/check triggers Slack/email alerts on failure
+curl -X POST https://line-ai-marketing-api.common-gifted-tokyo.workers.dev/health/check
+```
+
+Free cron services: [cron-job.org](https://cron-job.org), [EasyCron](https://easycron.com)
+
 ## Production URLs
 
 | Service | URL |

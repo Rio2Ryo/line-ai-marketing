@@ -95,8 +95,15 @@ cronTaskRoutes.post('/run/:task', roleMiddleware('admin'), async (c) => {
       case 'cache-cleanup':
         result = { removedEntries: await cleanExpiredCache(c.env.DB) };
         break;
+      case 'health-check': {
+        // Run deep health check + alert on state change
+        const apiBase = 'https://line-ai-marketing-api.common-gifted-tokyo.workers.dev';
+        const hcRes = await fetch(`${apiBase}/health/check`, { method: 'POST' });
+        result = await hcRes.json();
+        break;
+      }
       default:
-        return c.json({ success: false, error: `Unknown task: ${task}. Available: scenario-deliveries, scheduled-deliveries, retries, cache-cleanup` }, 400);
+        return c.json({ success: false, error: `Unknown task: ${task}. Available: scenario-deliveries, scheduled-deliveries, retries, cache-cleanup, health-check` }, 400);
     }
 
     const duration = Date.now() - startTime;
@@ -169,7 +176,7 @@ cronTaskRoutes.get('/webhook-url', roleMiddleware('admin'), async (c) => {
         runSpecific: `POST ${apiUrl}/api/cron-tasks/run/{task}`,
         status: `GET ${apiUrl}/api/cron-tasks/status`,
       },
-      tasks: ['scenario-deliveries', 'scheduled-deliveries', 'retries', 'cache-cleanup'],
+      tasks: ['scenario-deliveries', 'scheduled-deliveries', 'retries', 'cache-cleanup', 'health-check'],
       note: 'All endpoints require Authorization: Bearer <jwt_token> header with admin role.',
       recommendedInterval: '5 minutes (*/5 * * * *)',
       externalCronServices: [
