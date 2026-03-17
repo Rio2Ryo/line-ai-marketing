@@ -1,4 +1,5 @@
 import { Env } from '../types';
+import { callClaude } from './claude';
 import { notifyEscalation } from './notify';
 
 interface ChatMessage {
@@ -78,8 +79,8 @@ export async function generateAiReply(env: Env, userId: string, userMessage: str
 
 ${knowledgeContext ? `## ナレッジベース（参考情報）\n${knowledgeContext}` : '## ナレッジベース\n登録された情報がありません。担当者への確認を案内してください。'}`;
 
-  // 4. Claude API呼び出し
-  const messages = [
+  // 4. Claude API呼び出し (lib/claude.ts共通関数)
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
     ...history.slice(-8).map(m => ({ role: m.role, content: m.content })),
     { role: 'user' as const, content: userMessage },
   ];
@@ -89,46 +90,13 @@ ${knowledgeContext ? `## ナレッジベース（参考情報）\n${knowledgeCon
   let confidence: number;
 
   try {
-    // Azure AI Foundry endpoint (ANTHROPIC_RESOURCE設定時) or direct Anthropic API
-    const isFoundry = !!env.ANTHROPIC_RESOURCE;
-    const apiUrl = isFoundry
-      ? `https://${env.ANTHROPIC_RESOURCE}.services.ai.azure.com/anthropic/v1/messages`
-      : 'https://api.anthropic.com/v1/messages';
-    const authHeader = isFoundry
-      ? { 'Authorization': `Bearer ${env.ANTHROPIC_API_KEY}` }
-      : { 'x-api-key': env.ANTHROPIC_API_KEY };
-    const modelName = isFoundry ? 'claude-opus-4-6' : 'claude-haiku-4-5-20251001';
+    replyText = await callClaude(env, systemPrompt, messages, 500);
+    if (!replyText) replyText = '申し訳ございません。応答を生成できませんでした。';
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeader,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: modelName,
-        max_tokens: 500,
-        system: systemPrompt,
-        messages,
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('Claude API error:', response.status, err);
-      replyText = '申し訳ございません。現在システムに問題が発生しています。しばらくしてからお試しください。';
-      shouldEscalate = true;
-      confidence = 0;
-    } else {
-      const data = await response.json() as any;
-      replyText = data.content?.[0]?.text || '申し訳ございません。応答を生成できませんでした。';
-
-      // エスカレーション判定
-      const escalateKeywords = ['担当者に確認', '担当者にお繋ぎ', 'オペレーター', '確認いたします', 'わかりかねます'];
-      shouldEscalate = escalateKeywords.some(kw => replyText.includes(kw));
-      confidence = knowledge.length > 0 ? (shouldEscalate ? 0.3 : 0.8) : 0.2;
-    }
+    // エスカレーション判定
+    const escalateKeywords = ['担当者に確認', '担当者にお繋ぎ', 'オペレーター', '確認いたします', 'わかりかねます'];
+    shouldEscalate = escalateKeywords.some(kw => replyText.includes(kw));
+    confidence = knowledge.length > 0 ? (shouldEscalate ? 0.3 : 0.8) : 0.2;
   } catch (e) {
     console.error('AI chat error:', e);
     replyText = '申し訳ございません。現在応答を生成できません。担当者におつなぎいたします。';
