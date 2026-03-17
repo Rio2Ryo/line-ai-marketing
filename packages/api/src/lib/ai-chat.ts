@@ -16,20 +16,29 @@ interface AiChatResult {
 
 // RAG: ナレッジベースから関連コンテンツを検索（テキストマッチ）
 async function searchKnowledge(env: Env, query: string, limit: number = 5): Promise<Array<{ id: string; title: string; content: string; category: string | null }>> {
-  // キーワード分割してOR検索
-  const keywords = query.split(/[\s、。！？]+/).filter(k => k.length >= 2);
-  if (keywords.length === 0) {
-    // fallback: 全アクティブ記事から最新を取得
-    const rows = await env.DB.prepare("SELECT id, title, content, category FROM knowledge_base WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ?").bind(limit).all();
-    return (rows.results || []) as any[];
-  }
+  // D1 SQLite LIKE has strict pattern complexity limits with CJK text.
+  // Strategy: use a single short search term from the query for title match,
+  // then fetch all active articles and do JS-side filtering for content match.
+  const allArticles = await env.DB.prepare(
+    "SELECT id, title, content, category FROM knowledge_base WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 50"
+  ).all();
+  const articles = (allArticles.results || []) as Array<{ id: string; title: string; content: string; category: string | null }>;
+  if (articles.length === 0) return [];
 
-  const conditions = keywords.map(() => "content LIKE ?").join(" OR ");
-  const binds = keywords.map(k => '%' + k + '%');
-  const rows = await env.DB.prepare(
-    `SELECT id, title, content, category FROM knowledge_base WHERE is_active = 1 AND (${conditions} OR title LIKE ?) ORDER BY updated_at DESC LIMIT ?`
-  ).bind(...binds, '%' + query.slice(0, 50) + '%', limit).all();
-  return (rows.results || []) as any[];
+  // JS-side relevance scoring
+  const keywords = query.split(/[\s、。！？?!]+/).filter(k => k.length >= 2).slice(0, 5);
+  if (keywords.length === 0) return articles.slice(0, limit);
+
+  const scored = articles.map(a => {
+    let score = 0;
+    for (const kw of keywords) {
+      if (a.title.includes(kw)) score += 3;
+      if (a.content.includes(kw)) score += 1;
+    }
+    return { ...a, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.filter(a => a.score > 0).slice(0, limit);
 }
 
 // 会話履歴を取得（直近N件）

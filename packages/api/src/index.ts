@@ -49,6 +49,7 @@ import { cronTaskRoutes } from "./routes/cron-tasks";
 import { richmenuRuleRoutes } from "./routes/richmenu-rules";
 import { chatAnalyticsRoutes } from "./routes/chat-analytics";
 import { scoreActionRoutes } from "./routes/score-actions";
+import { healthRoutes } from "./routes/health";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -92,7 +93,7 @@ app.use("*", async (c, next) => {
 app.get("/", (c) => c.json({
   status: "ok",
   service: "LINE AI Marketing API",
-  version: "0.7.0",
+  version: "0.8.0",
   timestamp: new Date().toISOString(),
 }));
 
@@ -101,6 +102,7 @@ app.get("/health", (c) => {
   return c.json({ status: "healthy" });
 });
 
+app.route("/health", healthRoutes);
 app.route("/webhook", webhookRoutes);
 app.route("/auth", authRoutes);
 app.route("/api/customers", customerRoutes);
