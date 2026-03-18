@@ -50,6 +50,7 @@ import { richmenuRuleRoutes } from "./routes/richmenu-rules";
 import { chatAnalyticsRoutes } from "./routes/chat-analytics";
 import { scoreActionRoutes } from "./routes/score-actions";
 import { healthRoutes } from "./routes/health";
+import { docsRoutes } from "./routes/docs";
 import { scheduled } from "./scheduled";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -103,6 +104,7 @@ app.get("/health", (c) => {
 });
 
 app.route("/health", healthRoutes);
+app.route("/docs", docsRoutes);
 app.route("/webhook", webhookRoutes);
 app.route("/auth", authRoutes);
 app.route("/api/customers", customerRoutes);
